@@ -63,6 +63,16 @@ enum class TokenType
     DIVIDE,
     MODULUS,
     ASSIGN,
+
+    EQUALS,
+    NOT_EQUALS,
+    GREATER_THAN,
+    LESS_THAN,
+    GREATER_THAN_E,
+    LESS_THAN_E,
+
+    AND,
+    OR,
     
     OPEN_PARAN,
     CLOSE_PARAN,
@@ -95,6 +105,16 @@ string token_type_name(TokenType type)
         case TokenType::DIVIDE: return "DIVIDE";
         case TokenType::MODULUS: return "MODULUS";
         case TokenType::ASSIGN: return "ASSIGN";
+
+        case TokenType::EQUALS: return "EQUALS";
+        case TokenType::NOT_EQUALS: return "NOT_EQUALS";
+        case TokenType::GREATER_THAN: return "GREATER_THAN";
+        case TokenType::LESS_THAN: return "LESS_THAN";
+        case TokenType::GREATER_THAN_E: return "GREATER_THAN_E";
+        case TokenType::LESS_THAN_E: return "LESS_THAN_E";
+
+        case TokenType::AND: return "AND";
+        case TokenType::OR: return "OR";
 
         case TokenType::OPEN_PARAN: return "OPEN_PARAN";
         case TokenType::CLOSE_PARAN: return "CLOSE_PARAN";
@@ -192,6 +212,16 @@ void lexer_lexify(string fileName)
                 tokens.push_back(new Token(TokenType::ELSE, symbol, line));
                 continue;
             }
+            else if (symbol == "and")
+            {
+                tokens.push_back(new Token(TokenType::AND, symbol, line));
+                continue;
+            }
+            else if (symbol == "or")
+            {
+                tokens.push_back(new Token(TokenType::OR, symbol, line));
+                continue;
+            }
 
             tokens.push_back(new Token(TokenType::SYMBOL, symbol, line));
             continue;
@@ -252,7 +282,34 @@ void lexer_lexify(string fileName)
             char next = ifs.get();
             tokens.push_back(new Token(TokenType::ASSIGN, string(1, c) + string(1, next), line));
         }
+        else if (c == '!' && ifs.peek() == '=')
+        {
+            char next = ifs.get();
+            tokens.push_back(new Token(TokenType::NOT_EQUALS, string(1, c) + string(1, next), line));
+        }
+        else if (c == '>' && ifs.peek() == '=')
+        {
+            char next = ifs.get();
+            tokens.push_back(new Token(TokenType::GREATER_THAN_E, string(1, c) + string(1, next), line));
+        }
+        else if (c == '<' && ifs.peek() == '=')
+        {
+            char next = ifs.get();
+            tokens.push_back(new Token(TokenType::LESS_THAN_E, string(1, c) + string(1, next), line));
+        }
         // SINGLE CHARACTER OPERATORS
+        else if (c == '=')
+        {
+            tokens.push_back(new Token(TokenType::EQUALS, string(1, c), line));
+        }
+        else if (c == '>')
+        {
+            tokens.push_back(new Token(TokenType::GREATER_THAN, string(1, c), line));
+        }
+        else if (c == '<')
+        {
+            tokens.push_back(new Token(TokenType::LESS_THAN, string(1, c), line));
+        }
         else if (c == '+')
         {
             tokens.push_back(new Token(TokenType::PLUS, string(1, c), line));
@@ -398,7 +455,17 @@ enum class OperatorType
     MODULUS,
     ASSIGNMENT,
     NEGATE,
-    MEMBER_ACCESSOR
+    MEMBER_ACCESSOR,
+
+    EQUALS,
+    NOT_EQUALS,
+    GREATER_THAN,
+    LESS_THAN,
+    GREATER_THAN_E,
+    LESS_THAN_E,
+
+    AND,
+    OR
 };
 
 string operator_type_name(OperatorType type)
@@ -413,6 +480,16 @@ string operator_type_name(OperatorType type)
         case OperatorType::ASSIGNMENT: return "ASSIGNMENT";
         case OperatorType::NEGATE: return "NEGATE";
         case OperatorType::MEMBER_ACCESSOR: return "MEMBER_ACCESSOR";
+
+        case OperatorType::EQUALS: return "EQUALS";
+        case OperatorType::NOT_EQUALS: return "NOT_EQUALS";
+        case OperatorType::GREATER_THAN: return "GREATER_THAN";
+        case OperatorType::LESS_THAN: return "LESS_THAN";
+        case OperatorType::GREATER_THAN_E: return "GREATER_THAN_E";
+        case OperatorType::LESS_THAN_E: return "LESS_THAN_E";
+
+        case OperatorType::AND: return "AND";
+        case OperatorType::OR: return "OR";
         default: ERROR("That was not a statement type");
     }
 
@@ -970,15 +1047,83 @@ Statement* parser_parse_exp_addsub()
     return left;
 }
 
+Statement* parser_parse_equality()
+{
+    Statement* left = parser_parse_exp_addsub();
+
+    while (parser_get_token()->type == TokenType::EQUALS ||
+        parser_get_token()->type == TokenType::NOT_EQUALS ||
+        parser_get_token()->type == TokenType::GREATER_THAN ||
+        parser_get_token()->type == TokenType::LESS_THAN ||
+        parser_get_token()->type == TokenType::GREATER_THAN_E ||
+        parser_get_token()->type == TokenType::LESS_THAN_E)
+    {
+        if (parser_get_token()->type == TokenType::EQUALS)
+        {
+            parser_move_next_token();
+            left = new StatementBinaryOperator(OperatorType::EQUALS, left, parser_parse_exp_addsub());
+        }
+        else if (parser_get_token()->type == TokenType::NOT_EQUALS)
+        {
+            parser_move_next_token();
+            left = new StatementBinaryOperator(OperatorType::NOT_EQUALS, left, parser_parse_exp_addsub());
+        }
+        else if (parser_get_token()->type == TokenType::GREATER_THAN)
+        {
+            parser_move_next_token();
+            left = new StatementBinaryOperator(OperatorType::GREATER_THAN, left, parser_parse_exp_addsub());
+        }
+        else if (parser_get_token()->type == TokenType::LESS_THAN)
+        {
+            parser_move_next_token();
+            left = new StatementBinaryOperator(OperatorType::LESS_THAN, left, parser_parse_exp_addsub());
+        }
+        else if (parser_get_token()->type == TokenType::GREATER_THAN_E)
+        {
+            parser_move_next_token();
+            left = new StatementBinaryOperator(OperatorType::GREATER_THAN_E, left, parser_parse_exp_addsub());
+        }
+        else if (parser_get_token()->type == TokenType::LESS_THAN_E)
+        {
+            parser_move_next_token();
+            left = new StatementBinaryOperator(OperatorType::LESS_THAN_E, left, parser_parse_exp_addsub());
+        }
+    }
+
+    return left;
+}
+
+Statement* parser_parse_andor()
+{
+    Statement* left = parser_parse_equality();
+
+    while (parser_get_token()->type == TokenType::AND ||
+        parser_get_token()->type == TokenType::OR)
+    {
+        if (parser_get_token()->type == TokenType::AND)
+        {
+            parser_move_next_token();
+            left = new StatementBinaryOperator(OperatorType::AND, left, parser_parse_equality());
+        }
+        else if (parser_get_token()->type == TokenType::OR)
+        {
+            parser_move_next_token();
+            left = new StatementBinaryOperator(OperatorType::OR, left, parser_parse_equality());
+        }
+    }
+
+    return left;
+}
+
 Statement* parser_parse_exp_assign()
 {
     stack<Statement*> stmtStack;
-    stmtStack.push(parser_parse_exp_addsub());
+    stmtStack.push(parser_parse_andor());
 
     while (parser_get_token()->type == TokenType::ASSIGN)
     {
         parser_move_next_token();
-        stmtStack.push(parser_parse_exp_addsub());
+        stmtStack.push(parser_parse_andor());
     }
 
     if (stmtStack.size() > 1)
