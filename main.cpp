@@ -362,7 +362,9 @@ enum class StatementType
     FUNCTION,
     RETURN,
     FUNCTION_CALL,
-    STRUCT
+    STRUCT,
+    IF,
+    ELSE
 };
 
 string statement_type_name(StatementType type)
@@ -379,6 +381,8 @@ string statement_type_name(StatementType type)
         case StatementType::RETURN: return "RETURN";
         case StatementType::FUNCTION_CALL: return "FUNCTION_CALL";
         case StatementType::STRUCT: return "STRUCT";
+        case StatementType::IF: return "IF";
+        case StatementType::ELSE: return "ELSE";
         default: ERROR("That was not a statement type");
     }
 
@@ -713,6 +717,73 @@ struct StatementStruct : Statement
             stmt->print(padding + '\t');
 
         std::cout << padding << "]" << std::endl;
+    }
+};
+
+struct StatementElse : Statement
+{
+    StatementBlock* block;
+
+    StatementElse(StatementBlock* block) : Statement(StatementType::ELSE)
+    {
+        this->block = block;
+    }
+
+    ~StatementElse()
+    {
+        delete this->block;
+    }
+
+    void print(string padding) override
+    {
+        print_type(padding);
+        block->print(padding + '\t');
+    }
+};
+
+struct StatementIf : Statement
+{
+    StatementExpression* condition;
+    StatementBlock* block;
+    StatementIf* _elseIf;
+    StatementElse* _else;
+
+    StatementIf(StatementExpression* condition, StatementBlock* block, StatementIf* _elseIf, StatementElse* _else) : Statement(StatementType::IF)
+    {
+        this->condition = condition;
+        this->block = block;
+        this->_elseIf = _elseIf;
+        this->_else = _else;
+    }
+
+    ~StatementIf()
+    {
+        delete this->block;
+
+        if (this->_elseIf != nullptr)
+            delete this->_elseIf;
+
+        if (this->_else != nullptr)
+            delete this->_else;
+    }
+
+    void print(string padding) override
+    {
+        print_type(padding);
+
+        std::cout << padding << "Condition: [" << std::endl;
+
+        condition->print(padding + '\t');
+
+        std::cout << padding << "]" << std::endl;
+
+        block->print(padding + '\t');
+
+        if (this->_elseIf != nullptr)
+            _elseIf->print(padding + '\t');
+        
+        if (this->_else != nullptr)
+            _else->print(padding + '\t');
     }
 };
 
@@ -1106,13 +1177,52 @@ StatementStruct* parser_parse_struct()
     return _struct;
 }
 
+StatementElse* parser_parse_else()
+{
+    parser_move_next_token_skip_eols();
+    return new StatementElse(parser_parse_block());
+}
+
+StatementIf* parser_parse_if()
+{
+    parser_move_next_token();
+
+    auto exp = parser_parse_exp();
+
+    if (parser_get_token()->type == TokenType::END_OF_LINE)
+        parser_move_next_token_skip_eols();
+
+    auto block = parser_parse_block();
+
+    if (parser_get_token()->type == TokenType::END_OF_LINE)
+        parser_move_next_token_skip_eols();
+
+    auto _if = new StatementIf(exp, block, nullptr, nullptr);
+
+    if (parser_get_token()->type == TokenType::ELSE && parser_peek_token()->type == TokenType::IF)
+    {
+        parser_move_next_token();
+        _if->_elseIf = parser_parse_if();
+    }
+    else if (parser_get_token()->type == TokenType::ELSE)
+    {
+        _if->_else = parser_parse_else();
+    }
+
+    return _if;
+}
+
 /// @brief Parses the next statement.
 Statement* parser_parse_statement()
 {
     Statement* result = nullptr;
 
+    if (parser_get_token()->type == TokenType::IF)
+    {
+        result = parser_parse_if();
+    }
     // FUNCTION CALL
-    if (parser_get_token()->type == TokenType::SYMBOL && parser_peek_token()->type == TokenType::OPEN_PARAN)
+    else if (parser_get_token()->type == TokenType::SYMBOL && parser_peek_token()->type == TokenType::OPEN_PARAN)
     {
         result = parser_parse_function_call();
     }
