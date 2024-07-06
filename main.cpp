@@ -54,6 +54,8 @@ enum class TokenType
     FUNCITON,
     RETURN,
     STRUCT,
+    IF,
+    ELSE,
 
     PLUS,
     MINUS,
@@ -84,6 +86,8 @@ string token_type_name(TokenType type)
         case TokenType::FUNCITON: return "FUNCITON";
         case TokenType::RETURN: return "RETURN";
         case TokenType::STRUCT: return "STRUCT";
+        case TokenType::IF: return "IF";
+        case TokenType::ELSE: return "ELSE";
 
         case TokenType::PLUS: return "PLUS";
         case TokenType::MINUS: return "MINUS";
@@ -176,6 +180,16 @@ void lexer_lexify(string fileName)
             else if (symbol == "struct")
             {
                 tokens.push_back(new Token(TokenType::STRUCT, symbol, line));
+                continue;
+            }
+            else if (symbol == "if")
+            {
+                tokens.push_back(new Token(TokenType::IF, symbol, line));
+                continue;
+            }
+            else if (symbol == "else")
+            {
+                tokens.push_back(new Token(TokenType::ELSE, symbol, line));
                 continue;
             }
 
@@ -379,7 +393,8 @@ enum class OperatorType
     DIVISION,
     MODULUS,
     ASSIGNMENT,
-    NEGATE
+    NEGATE,
+    MEMBER_ACCESSOR
 };
 
 string operator_type_name(OperatorType type)
@@ -393,6 +408,7 @@ string operator_type_name(OperatorType type)
         case OperatorType::MODULUS: return "MODULUS";
         case OperatorType::ASSIGNMENT: return "ASSIGNMENT";
         case OperatorType::NEGATE: return "NEGATE";
+        case OperatorType::MEMBER_ACCESSOR: return "MEMBER_ACCESSOR";
         default: ERROR("That was not a statement type");
     }
 
@@ -727,14 +743,29 @@ const Token* parser_peek_token()
     return tokens[tokens.size() - 1];
 }
 
+void parser_move_next_token_skip_eols()
+{
+    parser_move_next_token();
+
+    while (parser_get_token()->type == TokenType::END_OF_LINE)
+        parser_move_next_token();
+}
+
 #pragma region Expressions
 
 StatementExpression* parser_parse_exp();
+StatementFunctionCall* parser_parse_function_call();
 
 Statement* parser_parse_exp_term()
 {
     Statement* result = nullptr;
 
+    // FUNCTION CALL
+    if (parser_get_token()->type == TokenType::SYMBOL && parser_peek_token()->type == TokenType::OPEN_PARAN)
+    {
+        result = parser_parse_function_call();
+        return result;
+    }
     if (parser_get_token()->type == TokenType::NUMBER)
     {
         bool isDecimal = false;
@@ -780,9 +811,47 @@ Statement* parser_parse_exp_term()
     return result;
 }
 
+Statement* parser_parse_exp_dot()
+{
+    stack<Statement*> stmtStack;
+    stmtStack.push(parser_parse_exp_term());
+
+    while (parser_get_token()->type == TokenType::DOT)
+    {
+        parser_move_next_token();
+        stmtStack.push(parser_parse_exp_term());
+    }
+
+    if (stmtStack.size() > 1)
+    {
+        auto right = stmtStack.top();
+        stmtStack.pop();
+        auto left = stmtStack.top();
+        stmtStack.pop();
+
+        auto binaryOperator = new StatementBinaryOperator(OperatorType::MEMBER_ACCESSOR, left, right);
+
+        while (stmtStack.size() > 0)
+        {
+            auto poped = stmtStack.top();
+            stmtStack.pop();
+
+            binaryOperator = new StatementBinaryOperator(OperatorType::MEMBER_ACCESSOR, poped, binaryOperator);
+        }
+
+        return binaryOperator;
+    }
+    else if (stmtStack.size() == 1)
+    {
+        return stmtStack.top();
+    }
+
+    return nullptr;
+}
+
 Statement* parser_parse_exp_muldivmod()
 {
-    Statement* left = parser_parse_exp_term();
+    Statement* left = parser_parse_exp_dot();
 
     while (parser_get_token()->type == TokenType::MULTIPLY ||
         parser_get_token()->type == TokenType::DIVIDE ||
@@ -791,17 +860,17 @@ Statement* parser_parse_exp_muldivmod()
         if (parser_get_token()->type == TokenType::MULTIPLY)
         {
             parser_move_next_token();
-            left = new StatementBinaryOperator(OperatorType::MULTIPLICATION, left, parser_parse_exp_term());
+            left = new StatementBinaryOperator(OperatorType::MULTIPLICATION, left, parser_parse_exp_dot());
         }
         else if (parser_get_token()->type == TokenType::DIVIDE)
         {
             parser_move_next_token();
-            left = new StatementBinaryOperator(OperatorType::DIVISION, left, parser_parse_exp_term());
+            left = new StatementBinaryOperator(OperatorType::DIVISION, left, parser_parse_exp_dot());
         }
         else if (parser_get_token()->type == TokenType::MODULUS)
         {
             parser_move_next_token();
-            left = new StatementBinaryOperator(OperatorType::MODULUS, left, parser_parse_exp_term());
+            left = new StatementBinaryOperator(OperatorType::MODULUS, left, parser_parse_exp_dot());
         }
     }
 
@@ -949,14 +1018,92 @@ StatementFunction* parser_parse_function()
     if (parser_get_token()->type != TokenType::CLOSE_PARAN)
         ERROR("Missing a close paranthesis on line " + std::to_string(startingLine + 1) + ".");
 
-    parser_move_next_token();
-
-    while (parser_get_token()->type == TokenType::END_OF_LINE)
-        parser_move_next_token();
+    parser_move_next_token_skip_eols();
 
     function->body = parser_parse_block();
 
     return function;
+}
+
+StatementFunctionCall* parser_parse_function_call()
+{
+    auto functionCall = new StatementFunctionCall(new StatementSymbol(parser_get_token()->value));
+
+    parser_move_next_token();
+    parser_move_next_token();
+
+    unsigned int startingLine = parser_get_token()->line;
+
+    while (parser_get_token()->type != TokenType::CLOSE_PARAN && parser_get_token()->type != TokenType::END_OF_FILE)
+    {
+        functionCall->argExpressions.push_back(parser_parse_exp());
+
+        if (parser_get_token()->type == TokenType::CLOSE_PARAN)
+            break;
+
+        if (parser_get_token()->type != TokenType::COMMA)
+            ERROR("Missing a comma to seperate expressions on line " + std::to_string(parser_get_token()->line) + " got [" + parser_get_token()->value + "].");
+        
+        parser_move_next_token();
+    }
+
+    if (parser_get_token()->type != TokenType::CLOSE_PARAN)
+        ERROR("Expected a close parenthesis on line " + std::to_string(startingLine + 1) + ".");
+
+    parser_move_next_token();
+
+    return functionCall;
+}
+
+StatementStruct* parser_parse_struct()
+{
+    parser_move_next_token();
+
+    if (parser_get_token()->type != TokenType::SYMBOL)
+        ERROR("Missing a name of struct on line " + std::to_string(parser_get_token()->line) + ".");
+
+    auto _struct = new StatementStruct(new StatementSymbol(parser_get_token()->value));
+
+    parser_move_next_token_skip_eols();
+
+    if (parser_get_token()->type != TokenType::OPEN_BRACKET)
+        ERROR("Missing an open bracket on line " + std::to_string(parser_get_token()->line) + ".");
+
+    parser_move_next_token_skip_eols();
+
+    unsigned int startingLine = parser_get_token()->line;
+
+    // parse variables and functions in structure
+    while (parser_get_token()->type != TokenType::CLOSE_BRACKET && parser_get_token()->type != TokenType::END_OF_FILE)
+    {
+        // VARIABLE
+        if (parser_get_token()->type == TokenType::SYMBOL && parser_peek_token()->type == TokenType::ASSIGN)
+        {
+            _struct->variables.push_back(parser_parse_exp());
+        }
+        // FUNCTION
+        else if (parser_get_token()->type == TokenType::FUNCITON)
+        {
+            _struct->functions.push_back(parser_parse_function());
+        }
+        else 
+        {
+            ERROR("Invalid statement in struct on line " + std::to_string(parser_get_token()->line) + " got [" + parser_get_token()->value + "].");
+        }
+
+        // make sure that we've reached the end of the statement
+        if (parser_get_token()->type != TokenType::END_OF_LINE && parser_get_token()->type != TokenType::END_OF_FILE)
+            ERROR("Expected the end of a statment on line " + std::to_string(parser_get_token()->line + 1) + " but got [" + parser_get_token()->value + "].");
+
+        parser_move_next_token_skip_eols();
+    }
+
+    if (parser_get_token()->type != TokenType::CLOSE_BRACKET)
+        ERROR("Missing closing bracket on line " + std::to_string(startingLine + 1) + ".");
+
+    parser_move_next_token();
+
+    return _struct;
 }
 
 /// @brief Parses the next statement.
@@ -967,32 +1114,7 @@ Statement* parser_parse_statement()
     // FUNCTION CALL
     if (parser_get_token()->type == TokenType::SYMBOL && parser_peek_token()->type == TokenType::OPEN_PARAN)
     {
-        auto functionCall = new StatementFunctionCall(new StatementSymbol(parser_get_token()->value));
-
-        parser_move_next_token();
-        parser_move_next_token();
-
-        unsigned int startingLine = parser_get_token()->line;
-
-        while (parser_get_token()->type != TokenType::CLOSE_PARAN && parser_get_token()->type != TokenType::END_OF_FILE)
-        {
-            functionCall->argExpressions.push_back(parser_parse_exp());
-
-            if (parser_get_token()->type == TokenType::CLOSE_PARAN)
-                break;
-
-            if (parser_get_token()->type != TokenType::COMMA)
-                ERROR("Missing a comma to seperate expressions on line " + std::to_string(parser_get_token()->line) + " got [" + parser_get_token()->value + "].");
-            
-            parser_move_next_token();
-        }
-
-        if (parser_get_token()->type != TokenType::CLOSE_PARAN)
-            ERROR("Expected a close parenthesis on line " + std::to_string(startingLine + 1) + ".");
-
-        parser_move_next_token();
-
-        result = functionCall;
+        result = parser_parse_function_call();
     }
     // EXPRESSIONS
     else if (parser_get_token()->type == TokenType::NUMBER ||
@@ -1004,64 +1126,13 @@ Statement* parser_parse_statement()
         result = parser_parse_exp();
     }
     // FUNCTIONS
-    else if (parser_get_token()->type == TokenType::FUNCITON && parser_peek_token()->type == TokenType::SYMBOL)
+    else if (parser_get_token()->type == TokenType::FUNCITON)
     {
         result = parser_parse_function();
     }
     else if (parser_get_token()->type == TokenType::STRUCT)
     {
-        parser_move_next_token();
-
-        if (parser_get_token()->type != TokenType::SYMBOL)
-            ERROR("Missing a name of struct on line " + std::to_string(parser_get_token()->line) + ".");
-
-        auto _struct = new StatementStruct(new StatementSymbol(parser_get_token()->value));
-
-        parser_move_next_token();
-
-        while (parser_get_token()->type == TokenType::END_OF_LINE)
-            parser_move_next_token();
-
-        if (parser_get_token()->type != TokenType::OPEN_BRACKET)
-            ERROR("Missing an open bracket on line " + std::to_string(parser_get_token()->line) + ".");
-
-        parser_move_next_token();
-
-        while (parser_get_token()->type == TokenType::END_OF_LINE)
-            parser_move_next_token();
-
-        unsigned int startingLine = parser_get_token()->line;
-
-        while (parser_get_token()->type != TokenType::CLOSE_BRACKET && parser_get_token()->type != TokenType::END_OF_FILE)
-        {
-            if (parser_get_token()->type == TokenType::SYMBOL && parser_peek_token()->type == TokenType::ASSIGN)
-            {
-                _struct->variables.push_back(parser_parse_exp());
-            }
-            else if (parser_get_token()->type == TokenType::FUNCITON)
-            {
-                _struct->functions.push_back(parser_parse_function());
-            }
-            else 
-            {
-                ERROR("Invalid statement in struct on line " + std::to_string(parser_get_token()->line) + " got [" + parser_get_token()->value + "].");
-            }
-
-            if (parser_get_token()->type != TokenType::END_OF_LINE && parser_get_token()->type != TokenType::END_OF_FILE)
-                ERROR("Expected the end of a statment on line " + std::to_string(parser_get_token()->line + 1) + " but got [" + parser_get_token()->value + "].");
-
-            parser_move_next_token();
-
-            while (parser_get_token()->type == TokenType::END_OF_LINE)
-                parser_move_next_token();
-        }
-
-        if (parser_get_token()->type != TokenType::CLOSE_BRACKET)
-            ERROR("Missing closing bracket on line " + std::to_string(startingLine + 1) + ".");
-
-        parser_move_next_token();
-
-        result = _struct;
+        result = parser_parse_struct();
     }
     // RETURNS
     else if (parser_get_token()->type == TokenType::RETURN)

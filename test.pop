@@ -1,7 +1,0 @@
-struct INT {
-    value -> 0
-
-    fn +(self, other) {
-        return self + other
-    }
-}
