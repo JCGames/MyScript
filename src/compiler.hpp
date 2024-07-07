@@ -47,6 +47,7 @@ enum class TokenType
     STRUCT,
     IF,
     ELSE,
+    _NULL,
 
     PLUS,
     MINUS,
@@ -89,6 +90,7 @@ string token_type_name(TokenType type)
         case TokenType::STRUCT: return "STRUCT";
         case TokenType::IF: return "IF";
         case TokenType::ELSE: return "ELSE";
+        case TokenType::_NULL: return "_NULL";
 
         case TokenType::PLUS: return "PLUS";
         case TokenType::MINUS: return "MINUS";
@@ -213,6 +215,11 @@ void lexer_lexify(string fileName)
                 tokens.push_back(new Token(TokenType::OR, symbol, line));
                 continue;
             }
+            else if (symbol == "null")
+            {
+                tokens.push_back(new Token(TokenType::_NULL, symbol, line));
+                continue;
+            }
 
             tokens.push_back(new Token(TokenType::SYMBOL, symbol, line));
             continue;
@@ -224,9 +231,7 @@ void lexer_lexify(string fileName)
             unsigned int beginLine = line;
 
             while (ifs.peek() != '"' && !ifs.eof())
-            {
                 str += ifs.get();
-            }
 
             c = ifs.get();
 
@@ -383,7 +388,9 @@ enum class DataType
 {
     STRING,
     FLOAT,
-    INT
+    INT,
+    BOOL,
+    _NULL
 };
 
 string data_type_name(DataType type)
@@ -393,6 +400,8 @@ string data_type_name(DataType type)
         case DataType::STRING: return "STRING";
         case DataType::FLOAT: return "FLOAT";
         case DataType::INT: return "INT";
+        case DataType::BOOL: return "BOOL";
+        case DataType::_NULL: return "_NULL";
         default: ERROR("That was not a token type");
     }
 
@@ -945,6 +954,10 @@ Statement* parser_parse_exp_term()
         if (parser_get_token()->type != TokenType::CLOSE_PARAN)
             ERROR("Expected a close paranthesis on line " + std::to_string(startingLine + 1) + ".");
     }
+    else if (parser_get_token()->type == TokenType::_NULL)
+    {
+        result = new StatementValue(DataType::_NULL, EMPTY_STRING);
+    }
 
     parser_move_next_token();
     return result;
@@ -1297,6 +1310,9 @@ StatementStruct* parser_parse_struct()
         {
             ERROR("Invalid statement in struct on line " + std::to_string(parser_get_token()->line) + " got [" + parser_get_token()->value + "].");
         }
+
+        if (parser_get_token()->type == TokenType::CLOSE_BRACKET)
+            break;
 
         // make sure that we've reached the end of the statement
         if (parser_get_token()->type != TokenType::END_OF_LINE && parser_get_token()->type != TokenType::END_OF_FILE)
