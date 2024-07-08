@@ -54,7 +54,7 @@ struct Path
 
         if(pDIR = opendir(to_string().c_str()))
         {
-            while(entry = readdir(pDIR))
+            while((entry = readdir(pDIR)))
             {
                 if (strcmp(entry->d_name, ".") != 0 && strcmp(entry->d_name, "..") != 0)
                     fileNames.push_back(entry->d_name);

@@ -15,7 +15,7 @@
 #include "enums/operator-type.hpp"
 #include "enums/data-type.hpp"
 
-#define ERROR(msg) logger_error(msg, __FILE__, __LINE__)
+#define LOG_ERROR(msg) logger_error(msg, __FILE__, __LINE__)
 #define CODE_ERROR(msg, file, line) logger_code_error(msg, file, line, __FILE__, __LINE__)
 #define CAST(value, type) static_cast<type*>(value)
 
@@ -28,10 +28,10 @@ using std::map;
 const string EMPTY_STRING = "";
 
 /// @brief Holds the names of all the files that have been lexified and parsed.
-vector<string> files;
+vector<string> lexeFiles;
 
 /// @brief Gets the current file that is being lexified
-unsigned int fIndex;
+unsigned int lexerFIndex;
 
 void logger_error(string msg, const char* file, int line)
 {
@@ -78,15 +78,29 @@ struct Token
 
 vector<Token*> lexerTokens;
 
+void lexer_delete_tokens()
+{
+    for (auto token : lexerTokens)
+    {
+        if (token != nullptr)
+            delete token;
+    }
+}
+
 void lexer_lexify(string fileName)
 {
     ifstream ifs(fileName);
 
     if (!ifs.is_open())
-        ERROR("Was unable to open file with name " + fileName + ".");
+        LOG_ERROR("Was unable to open file with name " + fileName + ".");
 
-    files.push_back(fileName);
-    fIndex = files.size() - 1;
+    lexeFiles.push_back(fileName);
+    lexerFIndex = lexeFiles.size() - 1;
+
+    // reset the tokens list
+    if (lexerTokens.size() > 0)
+        lexer_delete_tokens();
+    lexerTokens.clear();
 
     unsigned int line = 0;
     char c;
@@ -108,7 +122,7 @@ void lexer_lexify(string fileName)
         // END_OF_LINE
         if (c == '\n')
         {
-            auto token = new Token(pop::TokenType::END_OF_LINE, EMPTY_STRING, fIndex, line);
+            auto token = new Token(pop::TokenType::END_OF_LINE, EMPTY_STRING, lexerFIndex, line);
             ++line;
             lexerTokens.push_back(token);
             continue;
@@ -132,46 +146,46 @@ void lexer_lexify(string fileName)
 
             if (symbol == "fn")
             {
-                lexerTokens.push_back(new Token(pop::TokenType::FUNCITON, symbol, fIndex, line));
+                lexerTokens.push_back(new Token(pop::TokenType::FUNCITON, symbol, lexerFIndex, line));
                 continue;
             }
             else if (symbol == "return")
             {
-                lexerTokens.push_back(new Token(pop::TokenType::RETURN, symbol, fIndex, line));
+                lexerTokens.push_back(new Token(pop::TokenType::RETURN, symbol, lexerFIndex, line));
                 continue;
             }
             else if (symbol == "struct")
             {
-                lexerTokens.push_back(new Token(pop::TokenType::STRUCT, symbol, fIndex, line));
+                lexerTokens.push_back(new Token(pop::TokenType::STRUCT, symbol, lexerFIndex, line));
                 continue;
             }
             else if (symbol == "if")
             {
-                lexerTokens.push_back(new Token(pop::TokenType::IF, symbol, fIndex, line));
+                lexerTokens.push_back(new Token(pop::TokenType::IF, symbol, lexerFIndex, line));
                 continue;
             }
             else if (symbol == "else")
             {
-                lexerTokens.push_back(new Token(pop::TokenType::ELSE, symbol, fIndex, line));
+                lexerTokens.push_back(new Token(pop::TokenType::ELSE, symbol, lexerFIndex, line));
                 continue;
             }
             else if (symbol == "and")
             {
-                lexerTokens.push_back(new Token(pop::TokenType::AND, symbol, fIndex, line));
+                lexerTokens.push_back(new Token(pop::TokenType::AND, symbol, lexerFIndex, line));
                 continue;
             }
             else if (symbol == "or")
             {
-                lexerTokens.push_back(new Token(pop::TokenType::OR, symbol, fIndex, line));
+                lexerTokens.push_back(new Token(pop::TokenType::OR, symbol, lexerFIndex, line));
                 continue;
             }
             else if (symbol == "null")
             {
-                lexerTokens.push_back(new Token(pop::TokenType::_NULL, symbol, fIndex, line));
+                lexerTokens.push_back(new Token(pop::TokenType::_NULL, symbol, lexerFIndex, line));
                 continue;
             }
 
-            lexerTokens.push_back(new Token(pop::TokenType::SYMBOL, symbol, fIndex, line));
+            lexerTokens.push_back(new Token(pop::TokenType::SYMBOL, symbol, lexerFIndex, line));
             continue;
         }
         // STRING
@@ -186,11 +200,11 @@ void lexer_lexify(string fileName)
             c = ifs.get();
 
             if (c != '"')
-                CODE_ERROR("Missing a closing quotes.", files[fIndex], beginLine + 1);
+                CODE_ERROR("Missing a closing quotes.", lexeFiles[lexerFIndex], beginLine + 1);
 
             string_replace(str, "\\n", "\n");
 
-            lexerTokens.push_back(new Token(pop::TokenType::STRING, str, fIndex, line));
+            lexerTokens.push_back(new Token(pop::TokenType::STRING, str, lexerFIndex, line));
             continue;
         }
         // NUMBER
@@ -215,96 +229,96 @@ void lexer_lexify(string fileName)
                 } 
                 else if (c == '.' && hasDecimalPoint)
                 {
-                    CODE_ERROR("Number has too many decimal points.", files[fIndex], line + 1);
+                    CODE_ERROR("Number has too many decimal points.", lexeFiles[lexerFIndex], line + 1);
                 }
 
                 number += c;
             }
 
-            lexerTokens.push_back(new Token(pop::TokenType::NUMBER, number, fIndex, line));
+            lexerTokens.push_back(new Token(pop::TokenType::NUMBER, number, lexerFIndex, line));
             continue;
         }
         // DOUBLE OPERATORS
         else if (c == '-' && ifs.peek() == '>')
         {
             char next = ifs.get();
-            lexerTokens.push_back(new Token(pop::TokenType::ASSIGN, string(1, c) + string(1, next), fIndex, line));
+            lexerTokens.push_back(new Token(pop::TokenType::ASSIGN, string(1, c) + string(1, next), lexerFIndex, line));
         }
         else if (c == '!' && ifs.peek() == '=')
         {
             char next = ifs.get();
-            lexerTokens.push_back(new Token(pop::TokenType::NOT_EQUALS, string(1, c) + string(1, next), fIndex, line));
+            lexerTokens.push_back(new Token(pop::TokenType::NOT_EQUALS, string(1, c) + string(1, next), lexerFIndex, line));
         }
         else if (c == '>' && ifs.peek() == '=')
         {
             char next = ifs.get();
-            lexerTokens.push_back(new Token(pop::TokenType::GREATER_THAN_E, string(1, c) + string(1, next), fIndex, line));
+            lexerTokens.push_back(new Token(pop::TokenType::GREATER_THAN_E, string(1, c) + string(1, next), lexerFIndex, line));
         }
         else if (c == '<' && ifs.peek() == '=')
         {
             char next = ifs.get();
-            lexerTokens.push_back(new Token(pop::TokenType::LESS_THAN_E, string(1, c) + string(1, next), fIndex, line));
+            lexerTokens.push_back(new Token(pop::TokenType::LESS_THAN_E, string(1, c) + string(1, next), lexerFIndex, line));
         }
         // SINGLE CHARACTER OPERATORS
         else if (c == '=')
         {
-            lexerTokens.push_back(new Token(pop::TokenType::EQUALS, string(1, c), fIndex, line));
+            lexerTokens.push_back(new Token(pop::TokenType::EQUALS, string(1, c), lexerFIndex, line));
         }
         else if (c == '>')
         {
-            lexerTokens.push_back(new Token(pop::TokenType::GREATER_THAN, string(1, c), fIndex, line));
+            lexerTokens.push_back(new Token(pop::TokenType::GREATER_THAN, string(1, c), lexerFIndex, line));
         }
         else if (c == '<')
         {
-            lexerTokens.push_back(new Token(pop::TokenType::LESS_THAN, string(1, c), fIndex, line));
+            lexerTokens.push_back(new Token(pop::TokenType::LESS_THAN, string(1, c), lexerFIndex, line));
         }
         else if (c == '+')
         {
-            lexerTokens.push_back(new Token(pop::TokenType::PLUS, string(1, c), fIndex, line));
+            lexerTokens.push_back(new Token(pop::TokenType::PLUS, string(1, c), lexerFIndex, line));
         }
         else if (c == '-')
         {
-            lexerTokens.push_back(new Token(pop::TokenType::MINUS, string(1, c), fIndex, line));
+            lexerTokens.push_back(new Token(pop::TokenType::MINUS, string(1, c), lexerFIndex, line));
         }
         else if (c == '*')
         {
-            lexerTokens.push_back(new Token(pop::TokenType::MULTIPLY, string(1, c), fIndex, line));
+            lexerTokens.push_back(new Token(pop::TokenType::MULTIPLY, string(1, c), lexerFIndex, line));
         }
         else if (c == '/')
         {
-            lexerTokens.push_back(new Token(pop::TokenType::DIVIDE, string(1, c), fIndex, line));
+            lexerTokens.push_back(new Token(pop::TokenType::DIVIDE, string(1, c), lexerFIndex, line));
         }
         else if (c == '%')
         {
-            lexerTokens.push_back(new Token(pop::TokenType::MODULUS, string(1, c), fIndex, line));
+            lexerTokens.push_back(new Token(pop::TokenType::MODULUS, string(1, c), lexerFIndex, line));
         }
         else if (c == '(')
         {
-            lexerTokens.push_back(new Token(pop::TokenType::OPEN_PARAN, string(1, c), fIndex, line));
+            lexerTokens.push_back(new Token(pop::TokenType::OPEN_PARAN, string(1, c), lexerFIndex, line));
         }
         else if (c == ')')
         {
-            lexerTokens.push_back(new Token(pop::TokenType::CLOSE_PARAN, string(1, c), fIndex, line));
+            lexerTokens.push_back(new Token(pop::TokenType::CLOSE_PARAN, string(1, c), lexerFIndex, line));
         }
         else if (c == '{')
         {
-            lexerTokens.push_back(new Token(pop::TokenType::OPEN_BRACKET, string(1, c), fIndex, line));
+            lexerTokens.push_back(new Token(pop::TokenType::OPEN_BRACKET, string(1, c), lexerFIndex, line));
         }
         else if (c == '}')
         {
-            lexerTokens.push_back(new Token(pop::TokenType::CLOSE_BRACKET, string(1, c), fIndex, line));
+            lexerTokens.push_back(new Token(pop::TokenType::CLOSE_BRACKET, string(1, c), lexerFIndex, line));
         }
         else if (c == ',')
         {
-            lexerTokens.push_back(new Token(pop::TokenType::COMMA, string(1, c), fIndex, line));
+            lexerTokens.push_back(new Token(pop::TokenType::COMMA, string(1, c), lexerFIndex, line));
         }
         else if (c == '.')
         {
-            lexerTokens.push_back(new Token(pop::TokenType::DOT, string(1, c), fIndex, line));
+            lexerTokens.push_back(new Token(pop::TokenType::DOT, string(1, c), lexerFIndex, line));
         }
     }
 
-    lexerTokens.push_back(new Token(pop::TokenType::END_OF_FILE, EMPTY_STRING, fIndex, line));
+    lexerTokens.push_back(new Token(pop::TokenType::END_OF_FILE, EMPTY_STRING, lexerFIndex, line));
 
     ifs.close();
 }
@@ -314,15 +328,6 @@ void lexer_print_tokens()
     for (const auto token : lexerTokens)
     {
         std::cout << "Type: " << token_type_name(token->type) << " Value: |" << token->value << "| Line: " << token->line + 1 << std::endl;
-    }
-}
-
-void lexer_delete_tokens()
-{
-    for (auto token : lexerTokens)
-    {
-        if (token != nullptr)
-            delete token;
     }
 }
 
@@ -422,7 +427,7 @@ Statement* parser_parse_exp_term()
         result = parser_parse_exp();
 
         if (parser_get_token()->type != pop::TokenType::CLOSE_PARAN)
-            CODE_ERROR("Expected a close paranthesis.", files[fIndex], startingLine + 1);
+            CODE_ERROR("Expected a close paranthesis.", lexeFiles[lexerFIndex], startingLine + 1);
     }
     else if (parser_get_token()->type == pop::TokenType::_NULL)
     {
@@ -642,7 +647,7 @@ StatementBlock* parser_parse_block()
     StatementBlock* block = new StatementBlock();
 
     if (parser_get_token()->type != pop::TokenType::OPEN_BRACKET)
-        CODE_ERROR("Missing an open bracket.", files[parser_get_token()->fIndex], parser_get_token()->line + 1);
+        CODE_ERROR("Missing an open bracket.", lexeFiles[parser_get_token()->fIndex], parser_get_token()->line + 1);
 
     unsigned int startingLine = parser_get_token()->line;
 
@@ -661,13 +666,13 @@ StatementBlock* parser_parse_block()
 
         // statements should end with an end of line
         if (parser_get_token()->type != pop::TokenType::END_OF_LINE && parser_get_token()->type != pop::TokenType::END_OF_FILE)
-            CODE_ERROR("Expected the end of a statment but got [" + parser_get_token()->value + "].", files[parser_get_token()->fIndex], parser_get_token()->line + 1);
+            CODE_ERROR("Expected the end of a statment but got [" + parser_get_token()->value + "].", lexeFiles[parser_get_token()->fIndex], parser_get_token()->line + 1);
 
         parser_move_next_token();
     }
 
     if (parser_get_token()->type != pop::TokenType::CLOSE_BRACKET)
-        CODE_ERROR("Expected a close bracket.", files[parser_get_token()->fIndex], startingLine + 1);
+        CODE_ERROR("Expected a close bracket.", lexeFiles[parser_get_token()->fIndex], startingLine + 1);
 
     parser_move_next_token();
 
@@ -683,7 +688,7 @@ StatementFunction* parser_parse_function()
     parser_move_next_token();
 
     if (parser_get_token()->type != pop::TokenType::OPEN_PARAN)
-        CODE_ERROR("Missing an open paranthesis.", files[parser_get_token()->fIndex], parser_get_token()->line + 1);
+        CODE_ERROR("Missing an open paranthesis.", lexeFiles[parser_get_token()->fIndex], parser_get_token()->line + 1);
 
     unsigned int startingLine = parser_get_token()->line;
     int numberOfArgs = 0;
@@ -702,7 +707,7 @@ StatementFunction* parser_parse_function()
         }
         else
         {
-            CODE_ERROR("Expected a symbol but got " + parser_get_token()->value + ".", files[parser_get_token()->fIndex], parser_get_token()->line + 1);
+            CODE_ERROR("Expected a symbol but got " + parser_get_token()->value + ".", lexeFiles[parser_get_token()->fIndex], parser_get_token()->line + 1);
         }
         
         parser_move_next_token();
@@ -712,7 +717,7 @@ StatementFunction* parser_parse_function()
     }
 
     if (parser_get_token()->type != pop::TokenType::CLOSE_PARAN)
-        CODE_ERROR("Missing a close paranthesis.", files[parser_get_token()->fIndex], parser_get_token()->line);
+        CODE_ERROR("Missing a close paranthesis.", lexeFiles[parser_get_token()->fIndex], startingLine + 1);
 
     parser_move_next_token_skip_eols();
 
@@ -741,13 +746,13 @@ StatementFunctionCall* parser_parse_function_call()
             break;
 
         if (parser_get_token()->type != pop::TokenType::COMMA)
-            CODE_ERROR("Missing a comma to seperate expressions got [" + parser_get_token()->value + "].", files[parser_get_token()->fIndex], parser_get_token()->line);
+            CODE_ERROR("Missing a comma to seperate expressions got [" + parser_get_token()->value + "].", lexeFiles[parser_get_token()->fIndex], parser_get_token()->line);
         
         parser_move_next_token();
     }
 
     if (parser_get_token()->type != pop::TokenType::CLOSE_PARAN)
-        CODE_ERROR("Expected a close parenthesis.", files[parser_get_token()->fIndex], startingLine + 1);
+        CODE_ERROR("Expected a close parenthesis.", lexeFiles[parser_get_token()->fIndex], startingLine + 1);
 
     parser_move_next_token();
 
@@ -761,14 +766,14 @@ StatementStruct* parser_parse_struct()
     parser_move_next_token();
 
     if (parser_get_token()->type != pop::TokenType::SYMBOL)
-        CODE_ERROR("Missing a name of struct.", files[parser_get_token()->fIndex], parser_get_token()->line);
+        CODE_ERROR("Missing a name of struct.", lexeFiles[parser_get_token()->fIndex], parser_get_token()->line);
 
     auto _struct = new StatementStruct(new StatementSymbol(parser_get_token()->value));
 
     parser_move_next_token_skip_eols();
 
     if (parser_get_token()->type != pop::TokenType::OPEN_BRACKET)
-        CODE_ERROR("Missing an open bracket.", files[parser_get_token()->fIndex], parser_get_token()->line);
+        CODE_ERROR("Missing an open bracket.", lexeFiles[parser_get_token()->fIndex], parser_get_token()->line);
 
     parser_move_next_token_skip_eols();
 
@@ -789,7 +794,7 @@ StatementStruct* parser_parse_struct()
         }
         else 
         {
-            CODE_ERROR("Invalid statement in struct but got [" + parser_get_token()->value + "].", files[parser_get_token()->fIndex], parser_get_token()->line);
+            CODE_ERROR("Invalid statement in struct but got [" + parser_get_token()->value + "].", lexeFiles[parser_get_token()->fIndex], parser_get_token()->line);
         }
 
         if (parser_get_token()->type == pop::TokenType::CLOSE_BRACKET)
@@ -797,13 +802,13 @@ StatementStruct* parser_parse_struct()
 
         // make sure that we've reached the end of the statement
         if (parser_get_token()->type != pop::TokenType::END_OF_LINE && parser_get_token()->type != pop::TokenType::END_OF_FILE)
-            CODE_ERROR("Expected the end of a statment but got [" + parser_get_token()->value + "].", files[parser_get_token()->fIndex], parser_get_token()->line + 1);
+            CODE_ERROR("Expected the end of a statment but got [" + parser_get_token()->value + "].", lexeFiles[parser_get_token()->fIndex], parser_get_token()->line + 1);
 
         parser_move_next_token_skip_eols();
     }
 
     if (parser_get_token()->type != pop::TokenType::CLOSE_BRACKET)
-        CODE_ERROR("Missing closing bracket on line.", files[parser_get_token()->fIndex], startingLine + 1);
+        CODE_ERROR("Missing closing bracket on line.", lexeFiles[parser_get_token()->fIndex], startingLine + 1);
 
     parser_move_next_token();
 
@@ -909,7 +914,7 @@ void parser_parse_statements()
 
         // statements should end with an end of line
         if (parser_get_token()->type != pop::TokenType::END_OF_LINE && parser_get_token()->type != pop::TokenType::END_OF_FILE)
-            CODE_ERROR("Expected the end of a statment but got [" + parser_get_token()->value + "].", files[parser_get_token()->fIndex], parser_get_token()->line + 1);
+            CODE_ERROR("Expected the end of a statment but got [" + parser_get_token()->value + "].", lexeFiles[parser_get_token()->fIndex], parser_get_token()->line + 1);
 
         parser_move_next_token();
     }

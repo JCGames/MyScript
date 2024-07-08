@@ -4,590 +4,121 @@
 #include <memory>
 
 #include "compiler.hpp"
+#include "object.hpp"
 
-struct Object;
+vector<std::shared_ptr<Object>> rtHeap;
+stack<std::shared_ptr<Object>> rtStack;
 
-vector<std::shared_ptr<Object>> heap;
-stack<std::shared_ptr<Object>> _stack;
-
-struct Object
+/// @brief A structure for contextual data.
+class Context
 {
-    DataType type;
-    void* value;
-
-    Object()
-    {
-        this->type = DataType::_NULL;
-        this->value = nullptr;
-    }
-
-    template<typename T>
-    Object(T* value)
-    {
-        if (typeid(T) == typeid(int))
-        {
-            this->type = DataType::INT;
-        }
-        else if (typeid(T) == typeid(float))
-        {
-            this->type = DataType::FLOAT;
-        }
-        else if (typeid(T) == typeid(bool))
-        {
-            this->type = DataType::BOOL;
-        }
-        else if (typeid(T) == typeid(string))
-        {
-            this->type = DataType::STRING;
-        }
-        else
-        {
-            this->type = DataType::_NULL;
-        }
-
-        this->value = value;
-    }
-
-    Object(Object&& other) = delete;
-    Object& operator=(Object& other) = delete;
-
-    ~Object()
-    {
-        if (this->value == nullptr)
-            return;
-
-        switch (this->type)
-        {
-            case DataType::INT: 
-                delete (int*)value;
-                break;
-            case DataType::FLOAT: 
-                delete (float*)value;
-                break;
-            case DataType::BOOL: 
-                delete (bool*)value;
-                break;
-            case DataType::STRING: 
-                delete (string*)value;
-                break;
-        }
-    }
-
-    string to_string()
-    {
-        switch (this->type)
-        {
-            case DataType::INT: return std::to_string(*(int*)value);
-            case DataType::FLOAT: return std::to_string(*(float*)value);
-            case DataType::BOOL: return std::to_string(*(bool*)value);
-            case DataType::STRING: return *(string*)value;
-            case DataType::_NULL: return "Null";
-        }
-
-        return "Object?";
-    }
-
-    #pragma region Operators
-
-    /// @brief Takes two objects off the stack and adds them
-    static void add()
-    {
-        auto right = _stack.top();
-        _stack.pop();
-        auto left = _stack.top();
-        _stack.pop();
-
-        if (left->type == right->type)
-        {
-            switch (left->type)
-            {
-                case DataType::INT:
-                    _stack.push(std::make_shared<Object>(new int(*(int*)left->value + *(int*)right->value)));
-                    break;
-                case DataType::FLOAT:
-                    _stack.push(std::make_shared<Object>(new float(*(float*)left->value + *(float*)right->value)));
-                    break;
-                case DataType::BOOL:
-                    _stack.push(std::make_shared<Object>(new bool(*(bool*)left->value + *(bool*)right->value)));
-                    break;
-                case DataType::STRING:
-                    _stack.push(std::make_shared<Object>(new string(*(string*)left->value + *(string*)right->value)));
-                    break;
-            }
-        }
-        else
-        {
-            ERROR("Cannot add objects of different types.");
-        }
-    }
-
-    static void sub()
-    {
-        auto right = _stack.top();
-        _stack.pop();
-        auto left = _stack.top();
-        _stack.pop();
-
-        if (left->type == right->type)
-        {
-            switch (left->type)
-            {
-                case DataType::INT:
-                    _stack.push(std::make_shared<Object>(new int(*(int*)left->value - *(int*)right->value)));
-                    break;
-                case DataType::FLOAT:
-                    _stack.push(std::make_shared<Object>(new float(*(float*)left->value - *(float*)right->value)));
-                    break;
-                case DataType::BOOL:
-                    _stack.push(std::make_shared<Object>(new bool(*(bool*)left->value - *(bool*)right->value)));
-                    break;
-                case DataType::STRING:
-                    ERROR("Cannot subtract strings frome each other.");
-                    break;
-            }
-        }
-        else
-        {
-            ERROR("Cannot add objects of different types.");
-        }
-    }
-
-    static void mul()
-    {
-        auto right = _stack.top();
-        _stack.pop();
-        auto left = _stack.top();
-        _stack.pop();
-
-        if (left->type == right->type)
-        {
-            switch (left->type)
-            {
-                case DataType::INT:
-                    _stack.push(std::make_shared<Object>(new int(*(int*)left->value * *(int*)right->value)));
-                    break;
-                case DataType::FLOAT:
-                    _stack.push(std::make_shared<Object>(new float(*(float*)left->value * *(float*)right->value)));
-                    break;
-                case DataType::BOOL:
-                    _stack.push(std::make_shared<Object>(new bool(*(bool*)left->value * *(bool*)right->value)));
-                    break;
-                case DataType::STRING:
-                    ERROR("Cannot multiply strings to each other.");
-                    break;
-            }
-        }
-        else
-        {
-            ERROR("Cannot add objects of different types.");
-        }
-    }
-
-    static void div()
-    {
-        auto right = _stack.top();
-        _stack.pop();
-        auto left = _stack.top();
-        _stack.pop();
-
-        if (left->type == right->type)
-        {
-            switch (left->type)
-            {
-                case DataType::INT:
-                    _stack.push(std::make_shared<Object>(new int(*(int*)left->value / *(int*)right->value)));
-                    break;
-                case DataType::FLOAT:
-                    _stack.push(std::make_shared<Object>(new float(*(float*)left->value / *(float*)right->value)));
-                    break;
-                case DataType::BOOL:
-                    _stack.push(std::make_shared<Object>(new bool(*(bool*)left->value / *(bool*)right->value)));
-                    break;
-                case DataType::STRING:
-                    ERROR("Cannot divide strings from each other.");
-                    break;
-            }
-        }
-        else
-        {
-            ERROR("Cannot add objects of different types.");
-        }
-    }
-
-    static void mod()
-    {
-        auto right = _stack.top();
-        _stack.pop();
-        auto left = _stack.top();
-        _stack.pop();
-
-        if (left->type == right->type)
-        {
-            switch (left->type)
-            {
-                case DataType::INT:
-                    _stack.push(std::make_shared<Object>(new int(*(int*)left->value % *(int*)right->value)));
-                    break;
-                case DataType::FLOAT:
-                    ERROR("Cannot modulus floating point numbers.");
-                    break;
-                case DataType::BOOL:
-                    _stack.push(std::make_shared<Object>(new bool(*(bool*)left->value % *(bool*)right->value)));
-                    break;
-                case DataType::STRING:
-                    ERROR("Cannot modulus strings with each other.");
-                    break;
-            }
-        }
-        else
-        {
-            ERROR("Cannot add objects of different types.");
-        }
-    }
-
-    static void neg()
-    {
-        auto value = _stack.top();
-        _stack.pop();
-
-        switch (value->type)
-        {
-            case DataType::INT:
-                _stack.push(std::make_shared<Object>(new int(-*(int*)value->value)));
-                break;
-            case DataType::FLOAT:
-                _stack.push(std::make_shared<Object>(new float(-*(float*)value->value)));
-                break;
-            case DataType::BOOL:
-                ERROR("Cannot negate a boolean value.");
-                break;
-            case DataType::STRING:
-                ERROR("Cannot negate a string");
-                break;
-        }
-    }
-
-    static void eql()
-    {
-        auto right = _stack.top();
-        _stack.pop();
-        auto left = _stack.top();
-        _stack.pop();
-
-        if (left->type == right->type)
-        {
-            switch (left->type)
-            {
-                case DataType::INT:
-                    _stack.push(std::make_shared<Object>(new bool(*(int*)left->value == *(int*)right->value)));
-                    break;
-                case DataType::FLOAT:
-                    _stack.push(std::make_shared<Object>(new bool(*(float*)left->value == *(float*)right->value)));
-                    break;
-                case DataType::BOOL:
-                    _stack.push(std::make_shared<Object>(new bool(*(bool*)left->value == *(bool*)right->value)));
-                    break;
-                case DataType::STRING:
-                    _stack.push(std::make_shared<Object>(new bool(*(string*)left->value == *(string*)right->value)));
-                    break;
-            }
-        }
-        else
-        {
-            ERROR("Cannot add objects of different types.");
-        }
-    }
-
-    static void neq()
-    {
-        auto right = _stack.top();
-        _stack.pop();
-        auto left = _stack.top();
-        _stack.pop();
-
-        if (left->type == right->type)
-        {
-            switch (left->type)
-            {
-                case DataType::INT:
-                    _stack.push(std::make_shared<Object>(new bool(*(int*)left->value != *(int*)right->value)));
-                    break;
-                case DataType::FLOAT:
-                    _stack.push(std::make_shared<Object>(new bool(*(float*)left->value != *(float*)right->value)));
-                    break;
-                case DataType::BOOL:
-                    _stack.push(std::make_shared<Object>(new bool(*(bool*)left->value != *(bool*)right->value)));
-                    break;
-                case DataType::STRING:
-                    _stack.push(std::make_shared<Object>(new bool(*(string*)left->value != *(string*)right->value)));
-                    break;
-            }
-        }
-        else
-        {
-            ERROR("Cannot add objects of different types.");
-        }
-    }
-
-    static void gte()
-    {
-        auto right = _stack.top();
-        _stack.pop();
-        auto left = _stack.top();
-        _stack.pop();
-
-        if (left->type == right->type)
-        {
-            switch (left->type)
-            {
-                case DataType::INT:
-                    _stack.push(std::make_shared<Object>(new bool(*(int*)left->value >= *(int*)right->value)));
-                    break;
-                case DataType::FLOAT:
-                    _stack.push(std::make_shared<Object>(new bool(*(float*)left->value >= *(float*)right->value)));
-                    break;
-                case DataType::BOOL:
-                    _stack.push(std::make_shared<Object>(new bool(*(bool*)left->value >= *(bool*)right->value)));
-                    break;
-                case DataType::STRING:
-                    _stack.push(std::make_shared<Object>(new bool(*(string*)left->value >= *(string*)right->value)));
-                    break;
-            }
-        }
-        else
-        {
-            ERROR("Cannot add objects of different types.");
-        }
-    }
-
-    static void lte()
-    {
-        auto right = _stack.top();
-        _stack.pop();
-        auto left = _stack.top();
-        _stack.pop();
-
-        if (left->type == right->type)
-        {
-            switch (left->type)
-            {
-                case DataType::INT:
-                    _stack.push(std::make_shared<Object>(new bool(*(int*)left->value <= *(int*)right->value)));
-                    break;
-                case DataType::FLOAT:
-                    _stack.push(std::make_shared<Object>(new bool(*(float*)left->value <= *(float*)right->value)));
-                    break;
-                case DataType::BOOL:
-                    _stack.push(std::make_shared<Object>(new bool(*(bool*)left->value <= *(bool*)right->value)));
-                    break;
-                case DataType::STRING:
-                    _stack.push(std::make_shared<Object>(new bool(*(string*)left->value <= *(string*)right->value)));
-                    break;
-            }
-        }
-        else
-        {
-            ERROR("Cannot add objects of different types.");
-        }
-    }
-
-    static void gth()
-    {
-        auto right = _stack.top();
-        _stack.pop();
-        auto left = _stack.top();
-        _stack.pop();
-
-        if (left->type == right->type)
-        {
-            switch (left->type)
-            {
-                case DataType::INT:
-                    _stack.push(std::make_shared<Object>(new bool(*(int*)left->value > *(int*)right->value)));
-                    break;
-                case DataType::FLOAT:
-                    _stack.push(std::make_shared<Object>(new bool(*(float*)left->value > *(float*)right->value)));
-                    break;
-                case DataType::BOOL:
-                    _stack.push(std::make_shared<Object>(new bool(*(bool*)left->value > *(bool*)right->value)));
-                    break;
-                case DataType::STRING:
-                    _stack.push(std::make_shared<Object>(new bool(*(string*)left->value > *(string*)right->value)));
-                    break;
-            }
-        }
-        else
-        {
-            ERROR("Cannot add objects of different types.");
-        }
-    }
-
-    static void lth()
-    {
-        auto right = _stack.top();
-        _stack.pop();
-        auto left = _stack.top();
-        _stack.pop();
-
-        if (left->type == right->type)
-        {
-            switch (left->type)
-            {
-                case DataType::INT:
-                    _stack.push(std::make_shared<Object>(new bool(*(int*)left->value < *(int*)right->value)));
-                    break;
-                case DataType::FLOAT:
-                    _stack.push(std::make_shared<Object>(new bool(*(float*)left->value < *(float*)right->value)));
-                    break;
-                case DataType::BOOL:
-                    _stack.push(std::make_shared<Object>(new bool(*(bool*)left->value < *(bool*)right->value)));
-                    break;
-                case DataType::STRING:
-                    _stack.push(std::make_shared<Object>(new bool(*(string*)left->value < *(string*)right->value)));
-                    break;
-            }
-        }
-        else
-        {
-            ERROR("Cannot add objects of different types.");
-        }
-    }
-
-    static void _an()
-    {
-        auto right = _stack.top();
-        _stack.pop();
-        auto left = _stack.top();
-        _stack.pop();
-
-        if (left->type == right->type)
-        {
-            switch (left->type)
-            {
-                case DataType::INT:
-                    _stack.push(std::make_shared<Object>(new bool(*(int*)left->value && *(int*)right->value)));
-                    break;
-                case DataType::FLOAT:
-                    _stack.push(std::make_shared<Object>(new bool(*(float*)left->value && *(float*)right->value)));
-                    break;
-                case DataType::BOOL:
-                    _stack.push(std::make_shared<Object>(new bool(*(bool*)left->value && *(bool*)right->value)));
-                    break;
-                case DataType::STRING:
-                    ERROR("Cannot and strings.");
-                    break;
-            }
-        }
-        else
-        {
-            ERROR("Cannot add objects of different types.");
-        }
-    }
-
-    static void _or()
-    {
-        auto right = _stack.top();
-        _stack.pop();
-        auto left = _stack.top();
-        _stack.pop();
-
-        if (left->type == right->type)
-        {
-            switch (left->type)
-            {
-                case DataType::INT:
-                    _stack.push(std::make_shared<Object>(new int(*(int*)left->value || *(int*)right->value)));
-                    break;
-                case DataType::FLOAT:
-                    _stack.push(std::make_shared<Object>(new float(*(float*)left->value || *(float*)right->value)));
-                    break;
-                case DataType::BOOL:
-                    _stack.push(std::make_shared<Object>(new bool(*(bool*)left->value || *(bool*)right->value)));
-                    break;
-                case DataType::STRING:
-                    ERROR("Cannot or strings.");
-                    break;
-            }
-        }
-        else
-        {
-            ERROR("Cannot add objects of different types.");
-        }
-    }
-
-    #pragma endregion
-};
-
-struct Scope
-{
-    Scope* parent;
+    std::string blockName;
     map<string, StatementFunction*> functions;
     map<string, size_t> variables;
-    bool isReturned = false;
-    string functionName = EMPTY_STRING;
 
+public:
+    bool has_var(const string& name) { return variables.find(name) != variables.end(); }
+    bool has_fun(const string& name) { return functions.find(name) != functions.end(); }
+
+    void set_var(const string& name, const size_t& pointer) { variables[name] = pointer; }
+    void set_func(const string& name, StatementFunction* stmtFunc) { functions[name] = stmtFunc; }
+
+    size_t* get_var(const string& name) { if (has_var(name)) return &variables[name]; return nullptr; }
+    StatementFunction* get_func(const string& name) { if (has_fun(name)) return functions[name]; return nullptr; }
+
+    void print_variables()
+    {
+        for (auto& variable : variables)
+            std::cout << variable.first << " " << rtHeap[variable.second]->to_string() << std::endl;
+    }
+
+    void print_functions()
+    {
+        for (auto& function : functions)
+            std::cout << function.first << std::endl;
+    }
+};
+
+/// @brief Used for all types of scoping problems.
+class Scope
+{
+    Scope* parent;
+    Context ctx;
+
+    /// @brief has this scope been returned from.
+    bool isReturned = false;
+
+    /// @brief Example: A function can create a scope. Hince the need for tracking what scope we are in.
+    string id = EMPTY_STRING;
+
+    void internal_propagate_return_upwards(std::string id)
+    {
+        if (this->id == id)
+        {
+            isReturned = true;
+
+            if (parent != nullptr)
+                parent->internal_propagate_return_upwards(id);
+        }
+    }
+
+public:
     Scope(Scope* parent, StatementBlock* block)
     {
         this->parent = parent;
 
         if (parent != nullptr)
-            functionName = parent->functionName;
+            id = parent->id;
 
         for (auto& stmt : block->statements)
         {
             if (stmt->type == StatementType::FUNCTION)
             {
                 auto func = CAST(stmt, StatementFunction);
-                functions[func->name->symbol] = func;
+                ctx.set_func(func->name->symbol, func);
             }
         }
     }
 
-    void do_return(string functionName)
+    Scope(Scope* parent, StatementBlock* block, std::string id)
     {
-        if (this->functionName == functionName)
-        {
-            isReturned = true;
+        std::ostringstream oss;
+        oss << parent;
+        auto callersAddress = oss.str();
 
-            if (parent != nullptr)
-                parent->do_return(functionName);
+        this->id = id + ":" + callersAddress;
+
+        for (auto& stmt : block->statements)
+        {
+            if (stmt->type == StatementType::FUNCTION)
+            {
+                auto func = CAST(stmt, StatementFunction);
+                ctx.set_func(func->name->symbol, func);
+            }
         }
     }
 
-    bool has_var_in_this_scope(const string& name)
-    {
-        return variables.find(name) != variables.end();
-    }
-
-    bool has_fun_in_this_scope(const string& name)
-    {
-        return functions.find(name) != functions.end();
-    }
+    const std::string& get_id() { return this->id; }
+    const bool& get_is_returned() { return this->isReturned; }
+    /// @brief Will propagate upwards until the id of the upwards scope changes.
+    void propagate_return_upwards() { internal_propagate_return_upwards(this->id); }
 
     size_t* get_var_pointer(const string& name)
     {
-        if (has_var_in_this_scope(name))
-        {
-            return &variables[name];
-        }
+        if (ctx.has_var(name))
+            return ctx.get_var(name);
         else if (parent != nullptr)
-        {
             return parent->get_var_pointer(name);
-        }
         
         return nullptr;
     }
 
     StatementFunction* get_func(const string& name)
     {
-        if (has_fun_in_this_scope(name))
-        {
-            return functions[name];
-        }
+        if (ctx.has_fun(name))
+            return ctx.get_func(name);
         else if (parent != nullptr)
-        {
             return parent->get_func(name);
-        }
 
         return nullptr;
     }
@@ -596,12 +127,12 @@ struct Scope
     {
         if (auto pointer = get_var_pointer(name))
         {
-            heap[*pointer] = value;
+            rtHeap[*pointer] = value;
             return;
         }
 
-        heap.push_back(value); // add the value to the heap
-        variables[name] = heap.size() - 1; // map the address to the variable name
+        rtHeap.push_back(value); // add the value to the rtHeap
+        ctx.set_var(name, rtHeap.size() - 1); // map the address to the variable name
     }
 
     void print_variables()
@@ -609,8 +140,7 @@ struct Scope
         if (parent != nullptr)
             parent->print_variables();
 
-        for (auto& variable : variables)
-            std::cout << variable.first << " " << heap[variable.second]->to_string() << std::endl;
+        ctx.print_variables();
     }
 
     void print_functions()
@@ -618,15 +148,14 @@ struct Scope
         if (parent != nullptr)
             parent->print_functions();
 
-        for (auto& function : functions)
-            std::cout << function.first << std::endl;
+        ctx.print_functions();
     }
 
     void print_scopes()
     {
         std::cout << "=======================" << std::endl;
         std::cout << "Scope Parent: " << parent << std::endl;
-        std::cout << "Function Name: " << functionName << std::endl;
+        std::cout << "Scope Id: " << id << std::endl;
         std::cout << "Is Returned: " << isReturned << std::endl;
         std::cout << "=======================" << std::endl;
 
@@ -652,13 +181,13 @@ void rt_run_exp(Statement* stmt, Scope& scope)
             if (binaryOperator->operatorType == OperatorType::ASSIGNMENT)
             {
                 if (binaryOperator->left->type != StatementType::SYMBOL)
-                    ERROR("Not a valid assignment.");
+                    LOG_ERROR("Not a valid assignment.");
 
                 auto symbol = CAST(binaryOperator->left, StatementSymbol);
 
                 rt_run_exp(binaryOperator->right, scope);
 
-                auto value = _stack.top();
+                auto value = rtStack.top();
 
                 if (symbol->symbol == "__OUT__")
                     std::cout << value->to_string();
@@ -673,19 +202,19 @@ void rt_run_exp(Statement* stmt, Scope& scope)
 
             switch (binaryOperator->operatorType)
             {
-                case OperatorType::ADDITION:        Object::add(); break;
-                case OperatorType::SUBTRACTION:     Object::sub(); break;
-                case OperatorType::MULTIPLICATION:  Object::mul(); break;
-                case OperatorType::DIVISION:        Object::div(); break;
-                case OperatorType::MODULUS:         Object::mod(); break;
-                case OperatorType::EQUALS:          Object::eql(); break;
-                case OperatorType::NOT_EQUALS:      Object::neq(); break;
-                case OperatorType::GREATER_THAN_E:  Object::gte(); break;
-                case OperatorType::LESS_THAN_E:     Object::lte(); break;
-                case OperatorType::GREATER_THAN:    Object::gth(); break;
-                case OperatorType::LESS_THAN:       Object::lth(); break;
-                case OperatorType::AND:             Object::_an(); break;
-                case OperatorType::OR:              Object::_or(); break;
+                case OperatorType::ADDITION:        Object::add(rtStack); break;
+                case OperatorType::SUBTRACTION:     Object::sub(rtStack); break;
+                case OperatorType::MULTIPLICATION:  Object::mul(rtStack); break;
+                case OperatorType::DIVISION:        Object::div(rtStack); break;
+                case OperatorType::MODULUS:         Object::mod(rtStack); break;
+                case OperatorType::EQUALS:          Object::eql(rtStack); break;
+                case OperatorType::NOT_EQUALS:      Object::neq(rtStack); break;
+                case OperatorType::GREATER_THAN_E:  Object::gte(rtStack); break;
+                case OperatorType::LESS_THAN_E:     Object::lte(rtStack); break;
+                case OperatorType::GREATER_THAN:    Object::gth(rtStack); break;
+                case OperatorType::LESS_THAN:       Object::lth(rtStack); break;
+                case OperatorType::AND:             Object::_an(rtStack); break;
+                case OperatorType::OR:              Object::_or(rtStack); break;
             }
         }
             break;
@@ -697,7 +226,7 @@ void rt_run_exp(Statement* stmt, Scope& scope)
 
             switch (unaryOperator->operatorType)
             {
-                case OperatorType::NEGATE: Object::neg(); break;
+                case OperatorType::NEGATE: Object::neg(rtStack); break;
             }
         }
             break;
@@ -708,19 +237,19 @@ void rt_run_exp(Statement* stmt, Scope& scope)
             switch (value->dataType)
             {
                 case DataType::INT:
-                    _stack.push(std::make_shared<Object>(new int(std::stoi(value->value))));
+                    rtStack.push(std::make_shared<Object>(new int(std::stoi(value->value))));
                     break;
                 case DataType::FLOAT:
-                    _stack.push(std::make_shared<Object>(new float(std::stof(value->value))));
+                    rtStack.push(std::make_shared<Object>(new float(std::stof(value->value))));
                     break;
                 case DataType::BOOL:
-                    _stack.push(std::make_shared<Object>(new bool(std::stoi(value->value))));
+                    rtStack.push(std::make_shared<Object>(new bool(std::stoi(value->value))));
                     break;
                 case DataType::STRING:
-                    _stack.push(std::make_shared<Object>(new string(value->value)));
+                    rtStack.push(std::make_shared<Object>(new string(value->value)));
                     break;
                 case DataType::_NULL:
-                    _stack.push(std::make_shared<Object>());
+                    rtStack.push(std::make_shared<Object>());
                     break;
             }
         }
@@ -731,11 +260,11 @@ void rt_run_exp(Statement* stmt, Scope& scope)
 
             if (auto pointer = scope.get_var_pointer(symbol->symbol))
             {
-                _stack.push(heap[*pointer]);
+                rtStack.push(rtHeap[*pointer]);
             }
             else
             {
-                ERROR("Variable " + symbol->symbol + " has not been declared.");
+                LOG_ERROR("Variable " + symbol->symbol + " has not been declared.");
             }
         }
             break;
@@ -747,8 +276,7 @@ void rt_run_exp(Statement* stmt, Scope& scope)
             {
                 string line;
                 std::getline(std::cin, line);
-                _stack.push(std::make_shared<Object>(new string(line)));
-                scope.do_return(scope.functionName);
+                rtStack.push(std::make_shared<Object>(new string(line)));
                 break;
             }
 
@@ -762,20 +290,14 @@ void rt_run_function(StatementFunctionCall* functionCall, Scope& scope)
 {
     if (auto func = scope.get_func(functionCall->name->symbol))
     {
-        Scope funcScope(&scope, func->body);
-
-        std::ostringstream oss;
-        oss << &funcScope;
-        string address = oss.str();
-
-        funcScope.functionName = func->name->symbol + ":" + address;
+        Scope funcScope(&scope, func->body, func->name->symbol);
 
         for (size_t i = 0; i < func->params.size(); ++i) 
         {
             rt_run_exp(functionCall->argExpressions[i], scope);
 
-            auto result = _stack.top();
-            _stack.pop();
+            auto result = rtStack.top();
+            rtStack.pop();
 
             funcScope.set_var(func->params[i]->symbol, result);
         }
@@ -784,7 +306,7 @@ void rt_run_function(StatementFunctionCall* functionCall, Scope& scope)
     }
     else
     {
-        ERROR("Wrong number of arguemnts for function " + functionCall->name->symbol);
+        LOG_ERROR("Wrong number of arguemnts for function " + functionCall->name->symbol);
     }
 
 }
@@ -803,7 +325,7 @@ void rt_run_statement(Statement* stmt, Scope& scope)
             {
                 rt_run_statement(s, blockScope);
 
-                if (blockScope.isReturned == true)
+                if (blockScope.get_is_returned())
                     break;
             }
         }
@@ -814,8 +336,8 @@ void rt_run_statement(Statement* stmt, Scope& scope)
 
             rt_run_exp(stmt, scope);
 
-            auto result = _stack.top();
-            _stack.pop();
+            auto result = rtStack.top();
+            rtStack.pop();
 
             if (exp->root->type == StatementType::BINARY_OPERATOR)
             {
@@ -847,6 +369,13 @@ void rt_run_statement(Statement* stmt, Scope& scope)
                 scope.print_scopes();
                 break;
             }
+            else if (funcCall->name->symbol == "__IN__0")
+            {
+                string line;
+                std::getline(std::cin, line);
+                rtStack.push(std::make_shared<Object>(new string(line)));
+                break;
+            }
 
             rt_run_function(funcCall, scope);
         }
@@ -859,8 +388,8 @@ void rt_run_statement(Statement* stmt, Scope& scope)
 
             rt_run_exp(_if->condition, scope);
 
-            auto result = _stack.top();
-            _stack.pop();
+            auto result = rtStack.top();
+            rtStack.pop();
 
             if ((result->type == DataType::BOOL && *(bool*)result->value == true) ||
                 (result->type == DataType::INT && *(int*)result->value > 0))
@@ -892,13 +421,16 @@ void rt_run_statement(Statement* stmt, Scope& scope)
 
             rt_run_exp(_return->expression, scope);
             
-            scope.do_return(scope.functionName);
+            scope.propagate_return_upwards();
         }
             break;
     }
 }
 
-void rt_run(StatementBlock* ast = parserAstRoot)
+/**
+ * Runs the given Abstract Syntax Tree.
+ */
+void rt_run(StatementBlock* ast)
 {
     Scope scope(nullptr, ast);
 
