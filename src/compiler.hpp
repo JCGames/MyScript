@@ -10,8 +10,10 @@
 #include <map>
 #include <sstream>
 
-// can save space in binary file to remove debug code
-#define DEBUG
+#include "enums/token-type.hpp"
+#include "enums/statement-type.hpp"
+#include "enums/operator-type.hpp"
+#include "enums/data-type.hpp"
 
 #define ERROR(msg) logger_error(msg, __FILE__, __LINE__)
 #define CAST(value, type) static_cast<type*>(value)
@@ -30,100 +32,20 @@ void logger_error(string msg, const char* file, int line)
     exit(1);
 }
 
+bool string_replace(std::string& str, const std::string& from, const std::string& to) 
+{
+    size_t start_pos = str.find(from);
+    if(start_pos == std::string::npos)
+        return false;
+    str.replace(start_pos, from.length(), to);
+    return true;
+}
+
 // =====================
 // |       LEXER       |
 // =====================
 
 #pragma region Lexer
-
-enum class TokenType
-{
-    END_OF_FILE,
-    END_OF_LINE,
-    SYMBOL,
-    STRING,
-    NUMBER,
-    FUNCITON,
-    RETURN,
-    STRUCT,
-    IF,
-    ELSE,
-    _NULL,
-
-    PLUS,
-    MINUS,
-    MULTIPLY,
-    DIVIDE,
-    MODULUS,
-    ASSIGN,
-
-    EQUALS,
-    NOT_EQUALS,
-    GREATER_THAN,
-    LESS_THAN,
-    GREATER_THAN_E,
-    LESS_THAN_E,
-
-    AND,
-    OR,
-    
-    OPEN_PARAN,
-    CLOSE_PARAN,
-    OPEN_BRACKET,
-    CLOSE_BRACKET,
-    COMMA,
-    DOT
-};
-
-string token_type_name(TokenType type)
-{
-    // can save space in binary file to remove debug code
-    #ifdef DEBUG
-    switch (type)
-    {
-        case TokenType::END_OF_FILE: return "END_OF_FILE";
-        case TokenType::END_OF_LINE: return "END_OF_LINE";
-        case TokenType::SYMBOL: return "SYMBOL";
-        case TokenType::STRING: return "STRING";
-        case TokenType::NUMBER: return "NUMBER";
-        case TokenType::FUNCITON: return "FUNCITON";
-        case TokenType::RETURN: return "RETURN";
-        case TokenType::STRUCT: return "STRUCT";
-        case TokenType::IF: return "IF";
-        case TokenType::ELSE: return "ELSE";
-        case TokenType::_NULL: return "_NULL";
-
-        case TokenType::PLUS: return "PLUS";
-        case TokenType::MINUS: return "MINUS";
-        case TokenType::MULTIPLY: return "MULTIPLY";
-        case TokenType::DIVIDE: return "DIVIDE";
-        case TokenType::MODULUS: return "MODULUS";
-        case TokenType::ASSIGN: return "ASSIGN";
-
-        case TokenType::EQUALS: return "EQUALS";
-        case TokenType::NOT_EQUALS: return "NOT_EQUALS";
-        case TokenType::GREATER_THAN: return "GREATER_THAN";
-        case TokenType::LESS_THAN: return "LESS_THAN";
-        case TokenType::GREATER_THAN_E: return "GREATER_THAN_E";
-        case TokenType::LESS_THAN_E: return "LESS_THAN_E";
-
-        case TokenType::AND: return "AND";
-        case TokenType::OR: return "OR";
-
-        case TokenType::OPEN_PARAN: return "OPEN_PARAN";
-        case TokenType::CLOSE_PARAN: return "CLOSE_PARAN";
-        case TokenType::OPEN_BRACKET: return "OPEN_BRACKET";
-        case TokenType::CLOSE_BRACKET: return "CLOSE_BRACKET";
-        case TokenType::COMMA: return "COMMA";
-        case TokenType::DOT: return "DOT";
-        default: ERROR("That was not a token type");
-    }
-
-    return EMPTY_STRING;
-    #else
-    return std::to_string((int)type);
-    #endif
-}
 
 struct Token
 {
@@ -139,16 +61,7 @@ struct Token
     }
 };
 
-vector<Token*> tokens;
-
-bool string_replace(std::string& str, const std::string& from, const std::string& to) 
-{
-    size_t start_pos = str.find(from);
-    if(start_pos == std::string::npos)
-        return false;
-    str.replace(start_pos, from.length(), to);
-    return true;
-}
+vector<Token*> lexerTokens;
 
 void lexer_lexify(string fileName)
 {
@@ -178,7 +91,7 @@ void lexer_lexify(string fileName)
         {
             auto token = new Token(TokenType::END_OF_LINE, EMPTY_STRING, line);
             ++line;
-            tokens.push_back(token);
+            lexerTokens.push_back(token);
             continue;
         }
         // SYMBOL
@@ -200,46 +113,46 @@ void lexer_lexify(string fileName)
 
             if (symbol == "fn")
             {
-                tokens.push_back(new Token(TokenType::FUNCITON, symbol, line));
+                lexerTokens.push_back(new Token(TokenType::FUNCITON, symbol, line));
                 continue;
             }
             else if (symbol == "return")
             {
-                tokens.push_back(new Token(TokenType::RETURN, symbol, line));
+                lexerTokens.push_back(new Token(TokenType::RETURN, symbol, line));
                 continue;
             }
             else if (symbol == "struct")
             {
-                tokens.push_back(new Token(TokenType::STRUCT, symbol, line));
+                lexerTokens.push_back(new Token(TokenType::STRUCT, symbol, line));
                 continue;
             }
             else if (symbol == "if")
             {
-                tokens.push_back(new Token(TokenType::IF, symbol, line));
+                lexerTokens.push_back(new Token(TokenType::IF, symbol, line));
                 continue;
             }
             else if (symbol == "else")
             {
-                tokens.push_back(new Token(TokenType::ELSE, symbol, line));
+                lexerTokens.push_back(new Token(TokenType::ELSE, symbol, line));
                 continue;
             }
             else if (symbol == "and")
             {
-                tokens.push_back(new Token(TokenType::AND, symbol, line));
+                lexerTokens.push_back(new Token(TokenType::AND, symbol, line));
                 continue;
             }
             else if (symbol == "or")
             {
-                tokens.push_back(new Token(TokenType::OR, symbol, line));
+                lexerTokens.push_back(new Token(TokenType::OR, symbol, line));
                 continue;
             }
             else if (symbol == "null")
             {
-                tokens.push_back(new Token(TokenType::_NULL, symbol, line));
+                lexerTokens.push_back(new Token(TokenType::_NULL, symbol, line));
                 continue;
             }
 
-            tokens.push_back(new Token(TokenType::SYMBOL, symbol, line));
+            lexerTokens.push_back(new Token(TokenType::SYMBOL, symbol, line));
             continue;
         }
         // STRING
@@ -258,7 +171,7 @@ void lexer_lexify(string fileName)
 
             string_replace(str, "\\n", "\n");
 
-            tokens.push_back(new Token(TokenType::STRING, str, line));
+            lexerTokens.push_back(new Token(TokenType::STRING, str, line));
             continue;
         }
         // NUMBER
@@ -289,97 +202,97 @@ void lexer_lexify(string fileName)
                 number += c;
             }
 
-            tokens.push_back(new Token(TokenType::NUMBER, number, line));
+            lexerTokens.push_back(new Token(TokenType::NUMBER, number, line));
             continue;
         }
         // DOUBLE OPERATORS
         else if (c == '-' && ifs.peek() == '>')
         {
             char next = ifs.get();
-            tokens.push_back(new Token(TokenType::ASSIGN, string(1, c) + string(1, next), line));
+            lexerTokens.push_back(new Token(TokenType::ASSIGN, string(1, c) + string(1, next), line));
         }
         else if (c == '!' && ifs.peek() == '=')
         {
             char next = ifs.get();
-            tokens.push_back(new Token(TokenType::NOT_EQUALS, string(1, c) + string(1, next), line));
+            lexerTokens.push_back(new Token(TokenType::NOT_EQUALS, string(1, c) + string(1, next), line));
         }
         else if (c == '>' && ifs.peek() == '=')
         {
             char next = ifs.get();
-            tokens.push_back(new Token(TokenType::GREATER_THAN_E, string(1, c) + string(1, next), line));
+            lexerTokens.push_back(new Token(TokenType::GREATER_THAN_E, string(1, c) + string(1, next), line));
         }
         else if (c == '<' && ifs.peek() == '=')
         {
             char next = ifs.get();
-            tokens.push_back(new Token(TokenType::LESS_THAN_E, string(1, c) + string(1, next), line));
+            lexerTokens.push_back(new Token(TokenType::LESS_THAN_E, string(1, c) + string(1, next), line));
         }
         // SINGLE CHARACTER OPERATORS
         else if (c == '=')
         {
-            tokens.push_back(new Token(TokenType::EQUALS, string(1, c), line));
+            lexerTokens.push_back(new Token(TokenType::EQUALS, string(1, c), line));
         }
         else if (c == '>')
         {
-            tokens.push_back(new Token(TokenType::GREATER_THAN, string(1, c), line));
+            lexerTokens.push_back(new Token(TokenType::GREATER_THAN, string(1, c), line));
         }
         else if (c == '<')
         {
-            tokens.push_back(new Token(TokenType::LESS_THAN, string(1, c), line));
+            lexerTokens.push_back(new Token(TokenType::LESS_THAN, string(1, c), line));
         }
         else if (c == '+')
         {
-            tokens.push_back(new Token(TokenType::PLUS, string(1, c), line));
+            lexerTokens.push_back(new Token(TokenType::PLUS, string(1, c), line));
         }
         else if (c == '-')
         {
-            tokens.push_back(new Token(TokenType::MINUS, string(1, c), line));
+            lexerTokens.push_back(new Token(TokenType::MINUS, string(1, c), line));
         }
         else if (c == '*')
         {
-            tokens.push_back(new Token(TokenType::MULTIPLY, string(1, c), line));
+            lexerTokens.push_back(new Token(TokenType::MULTIPLY, string(1, c), line));
         }
         else if (c == '/')
         {
-            tokens.push_back(new Token(TokenType::DIVIDE, string(1, c), line));
+            lexerTokens.push_back(new Token(TokenType::DIVIDE, string(1, c), line));
         }
         else if (c == '%')
         {
-            tokens.push_back(new Token(TokenType::MODULUS, string(1, c), line));
+            lexerTokens.push_back(new Token(TokenType::MODULUS, string(1, c), line));
         }
         else if (c == '(')
         {
-            tokens.push_back(new Token(TokenType::OPEN_PARAN, string(1, c), line));
+            lexerTokens.push_back(new Token(TokenType::OPEN_PARAN, string(1, c), line));
         }
         else if (c == ')')
         {
-            tokens.push_back(new Token(TokenType::CLOSE_PARAN, string(1, c), line));
+            lexerTokens.push_back(new Token(TokenType::CLOSE_PARAN, string(1, c), line));
         }
         else if (c == '{')
         {
-            tokens.push_back(new Token(TokenType::OPEN_BRACKET, string(1, c), line));
+            lexerTokens.push_back(new Token(TokenType::OPEN_BRACKET, string(1, c), line));
         }
         else if (c == '}')
         {
-            tokens.push_back(new Token(TokenType::CLOSE_BRACKET, string(1, c), line));
+            lexerTokens.push_back(new Token(TokenType::CLOSE_BRACKET, string(1, c), line));
         }
         else if (c == ',')
         {
-            tokens.push_back(new Token(TokenType::COMMA, string(1, c), line));
+            lexerTokens.push_back(new Token(TokenType::COMMA, string(1, c), line));
         }
         else if (c == '.')
         {
-            tokens.push_back(new Token(TokenType::DOT, string(1, c), line));
+            lexerTokens.push_back(new Token(TokenType::DOT, string(1, c), line));
         }
     }
 
-    tokens.push_back(new Token(TokenType::END_OF_FILE, EMPTY_STRING, line));
+    lexerTokens.push_back(new Token(TokenType::END_OF_FILE, EMPTY_STRING, line));
 
     ifs.close();
 }
 
 void lexer_print_tokens()
 {
-    for (const auto token : tokens)
+    for (const auto token : lexerTokens)
     {
         std::cout << "Type: " << token_type_name(token->type) << " Value: |" << token->value << "| Line: " << token->line + 1 << std::endl;
     }
@@ -387,7 +300,7 @@ void lexer_print_tokens()
 
 void lexer_delete_tokens()
 {
-    for (auto token : tokens)
+    for (auto token : lexerTokens)
     {
         if (token != nullptr)
             delete token;
@@ -401,122 +314,6 @@ void lexer_delete_tokens()
 // =======================
 
 #pragma region Parser
-
-#pragma region Enums
-
-enum class DataType
-{
-    STRING,
-    FLOAT,
-    INT,
-    BOOL,
-    _NULL
-};
-
-string data_type_name(DataType type)
-{
-    switch (type)
-    {
-        case DataType::STRING: return "STRING";
-        case DataType::FLOAT: return "FLOAT";
-        case DataType::INT: return "INT";
-        case DataType::BOOL: return "BOOL";
-        case DataType::_NULL: return "_NULL";
-        default: ERROR("That was not a token type");
-    }
-
-    return EMPTY_STRING;
-}
-
-enum class StatementType
-{
-    VALUE,
-    EXPRESSION,
-    BINARY_OPERATOR,
-    UNARY_OPERATOR,
-    SYMBOL,
-    BLOCK,
-    FUNCTION,
-    RETURN,
-    FUNCTION_CALL,
-    STRUCT,
-    IF,
-    ELSE
-};
-
-string statement_type_name(StatementType type)
-{
-    switch (type)
-    {
-        case StatementType::VALUE: return "VALUE";
-        case StatementType::EXPRESSION: return "EXPRESSION";
-        case StatementType::BINARY_OPERATOR: return "BINARY_OPERATOR";
-        case StatementType::UNARY_OPERATOR: return "UNARY_OPERATOR";
-        case StatementType::SYMBOL: return "SYMBOL";
-        case StatementType::BLOCK: return "BLOCK";
-        case StatementType::FUNCTION: return "FUNCTION";
-        case StatementType::RETURN: return "RETURN";
-        case StatementType::FUNCTION_CALL: return "FUNCTION_CALL";
-        case StatementType::STRUCT: return "STRUCT";
-        case StatementType::IF: return "IF";
-        case StatementType::ELSE: return "ELSE";
-        default: ERROR("That was not a statement type");
-    }
-
-    return EMPTY_STRING;
-}
-
-enum class OperatorType
-{
-    ADDITION,
-    SUBTRACTION,
-    MULTIPLICATION,
-    DIVISION,
-    MODULUS,
-    ASSIGNMENT,
-    NEGATE,
-    MEMBER_ACCESSOR,
-
-    EQUALS,
-    NOT_EQUALS,
-    GREATER_THAN,
-    LESS_THAN,
-    GREATER_THAN_E,
-    LESS_THAN_E,
-
-    AND,
-    OR
-};
-
-string operator_type_name(OperatorType type)
-{
-    switch (type)
-    {
-        case OperatorType::ADDITION: return "ADDITION";
-        case OperatorType::SUBTRACTION: return "SUBTRACTION";
-        case OperatorType::MULTIPLICATION: return "MULTIPLICATION";
-        case OperatorType::DIVISION: return "DIVISION";
-        case OperatorType::MODULUS: return "MODULUS";
-        case OperatorType::ASSIGNMENT: return "ASSIGNMENT";
-        case OperatorType::NEGATE: return "NEGATE";
-        case OperatorType::MEMBER_ACCESSOR: return "MEMBER_ACCESSOR";
-
-        case OperatorType::EQUALS: return "EQUALS";
-        case OperatorType::NOT_EQUALS: return "NOT_EQUALS";
-        case OperatorType::GREATER_THAN: return "GREATER_THAN";
-        case OperatorType::LESS_THAN: return "LESS_THAN";
-        case OperatorType::GREATER_THAN_E: return "GREATER_THAN_E";
-        case OperatorType::LESS_THAN_E: return "LESS_THAN_E";
-
-        case OperatorType::AND: return "AND";
-        case OperatorType::OR: return "OR";
-        default: ERROR("That was not a statement type");
-    }
-
-    return EMPTY_STRING;
-}
-
-#pragma endregion
 
 #pragma region Statements
 
@@ -889,26 +686,26 @@ struct StatementIf : Statement
 StatementBlock* parserAstRoot = nullptr;
 unsigned int parserPosition = 0;
 
-/// @brief Moves to the next token in the list of tokens.
+/// @brief Moves to the next token in the list of lexerTokens.
 void parser_move_next_token()
 {
-    if (parserPosition + 1 < tokens.size())
+    if (parserPosition + 1 < lexerTokens.size())
         ++parserPosition;
 }
 
 /// @brief Gets the token at the current parserPosition.
 const Token* parser_get_token()
 {
-    return tokens[parserPosition];
+    return lexerTokens[parserPosition];
 }
 
 /// @brief Peeks at the next token one parserPosition further than the current parserPosition. 
 const Token* parser_peek_token()
 {
-    if (parserPosition + 1 < tokens.size())
-        return tokens[parserPosition + 1];
+    if (parserPosition + 1 < lexerTokens.size())
+        return lexerTokens[parserPosition + 1];
     
-    return tokens[tokens.size() - 1];
+    return lexerTokens[lexerTokens.size() - 1];
 }
 
 void parser_move_next_token_skip_eols()
@@ -1432,7 +1229,7 @@ Statement* parser_parse_statement()
     return result;
 }
 
-/// @brief Entry point for parsing a list of tokens.
+/// @brief Entry point for parsing a list of lexerTokens.
 void parser_parse_statements()
 {
     if (parserAstRoot == nullptr)
