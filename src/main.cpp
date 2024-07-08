@@ -21,7 +21,7 @@ int main(int argc, char** argv)
         // lexer_print_tokens();
 
         parser_parse_statements();
-        // parserAstRoot->print(EMPTY_STRING);
+        parserAstRoot->print(EMPTY_STRING);
 
         rt_run();
 

@@ -538,7 +538,7 @@ struct Scope
             if (stmt->type == StatementType::FUNCTION)
             {
                 auto func = CAST(stmt, StatementFunction);
-                functions[func->name->symbol + std::to_string(func->params.size())] = func;
+                functions[func->name->symbol] = func;
             }
         }
     }
@@ -743,7 +743,7 @@ void rt_run_exp(Statement* stmt, Scope& scope)
         {
             auto funcCall = CAST(stmt, StatementFunctionCall);
 
-            if (funcCall->name->symbol == "__IN__")
+            if (funcCall->name->symbol == "__IN__0")
             {
                 string line;
                 std::getline(std::cin, line);
@@ -760,7 +760,7 @@ void rt_run_exp(Statement* stmt, Scope& scope)
 
 void rt_run_function(StatementFunctionCall* functionCall, Scope& scope)
 {
-    if (auto func = scope.get_func(functionCall->name->symbol + std::to_string(functionCall->argExpressions.size())))
+    if (auto func = scope.get_func(functionCall->name->symbol))
     {
         Scope funcScope(&scope, func->body);
 
@@ -768,7 +768,7 @@ void rt_run_function(StatementFunctionCall* functionCall, Scope& scope)
         oss << &funcScope;
         string address = oss.str();
 
-        funcScope.functionName = func->name->symbol + std::to_string(functionCall->argExpressions.size()) + ":" + address;
+        funcScope.functionName = func->name->symbol + ":" + address;
 
         for (size_t i = 0; i < func->params.size(); ++i) 
         {
@@ -784,7 +784,7 @@ void rt_run_function(StatementFunctionCall* functionCall, Scope& scope)
     }
     else
     {
-        ERROR("Wrong number of arguemnts for function " + functionCall->name->symbol + std::to_string(functionCall->argExpressions.size()));
+        ERROR("Wrong number of arguemnts for function " + functionCall->name->symbol);
     }
 
 }
@@ -832,17 +832,17 @@ void rt_run_statement(Statement* stmt, Scope& scope)
         {
             auto funcCall = CAST(stmt, StatementFunctionCall);
 
-            if (funcCall->name->symbol == "__VARS__")
+            if (funcCall->name->symbol == "__VARS__0")
             {
                 scope.print_variables();
                 break;
             }
-            else if (funcCall->name->symbol == "__FUNCS__")
+            else if (funcCall->name->symbol == "__FUNCS__0")
             {
                 scope.print_functions();
                 break;
             }
-            else if (funcCall->name->symbol == "__SCOPES__")
+            else if (funcCall->name->symbol == "__SCOPES__0")
             {
                 scope.print_scopes();
                 break;
