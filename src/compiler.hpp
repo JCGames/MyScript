@@ -16,6 +16,7 @@
 #include "enums/data-type.hpp"
 
 #define ERROR(msg) logger_error(msg, __FILE__, __LINE__)
+#define CODE_ERROR() logger_code_error(msg, file, line, __FILE__, __LINE__)
 #define CAST(value, type) static_cast<type*>(value)
 
 using std::vector;
@@ -30,6 +31,11 @@ void logger_error(string msg, const char* file, int line)
 {
     std::cout << msg << " [" << file << ":" << line << "]" << std::endl;
     exit(1);
+}
+
+void logger_code_error(string msg, unsigned int codeLine, const char* file, int line)
+{
+
 }
 
 bool string_replace(std::string& str, const std::string& from, const std::string& to) 
@@ -49,11 +55,12 @@ bool string_replace(std::string& str, const std::string& from, const std::string
 
 struct Token
 {
-    TokenType type;
+    pop::TokenType type;
     string value;
+    string fileName;
     unsigned int line;
 
-    Token(TokenType type, string value, unsigned int line)
+    Token(pop::TokenType type, string value, unsigned int line)
     {
         this->type = type;
         this->value = value;
@@ -89,7 +96,7 @@ void lexer_lexify(string fileName)
         // END_OF_LINE
         if (c == '\n')
         {
-            auto token = new Token(TokenType::END_OF_LINE, EMPTY_STRING, line);
+            auto token = new Token(pop::TokenType::END_OF_LINE, EMPTY_STRING, line);
             ++line;
             lexerTokens.push_back(token);
             continue;
@@ -113,46 +120,46 @@ void lexer_lexify(string fileName)
 
             if (symbol == "fn")
             {
-                lexerTokens.push_back(new Token(TokenType::FUNCITON, symbol, line));
+                lexerTokens.push_back(new Token(pop::TokenType::FUNCITON, symbol, line));
                 continue;
             }
             else if (symbol == "return")
             {
-                lexerTokens.push_back(new Token(TokenType::RETURN, symbol, line));
+                lexerTokens.push_back(new Token(pop::TokenType::RETURN, symbol, line));
                 continue;
             }
             else if (symbol == "struct")
             {
-                lexerTokens.push_back(new Token(TokenType::STRUCT, symbol, line));
+                lexerTokens.push_back(new Token(pop::TokenType::STRUCT, symbol, line));
                 continue;
             }
             else if (symbol == "if")
             {
-                lexerTokens.push_back(new Token(TokenType::IF, symbol, line));
+                lexerTokens.push_back(new Token(pop::TokenType::IF, symbol, line));
                 continue;
             }
             else if (symbol == "else")
             {
-                lexerTokens.push_back(new Token(TokenType::ELSE, symbol, line));
+                lexerTokens.push_back(new Token(pop::TokenType::ELSE, symbol, line));
                 continue;
             }
             else if (symbol == "and")
             {
-                lexerTokens.push_back(new Token(TokenType::AND, symbol, line));
+                lexerTokens.push_back(new Token(pop::TokenType::AND, symbol, line));
                 continue;
             }
             else if (symbol == "or")
             {
-                lexerTokens.push_back(new Token(TokenType::OR, symbol, line));
+                lexerTokens.push_back(new Token(pop::TokenType::OR, symbol, line));
                 continue;
             }
             else if (symbol == "null")
             {
-                lexerTokens.push_back(new Token(TokenType::_NULL, symbol, line));
+                lexerTokens.push_back(new Token(pop::TokenType::_NULL, symbol, line));
                 continue;
             }
 
-            lexerTokens.push_back(new Token(TokenType::SYMBOL, symbol, line));
+            lexerTokens.push_back(new Token(pop::TokenType::SYMBOL, symbol, line));
             continue;
         }
         // STRING
@@ -171,7 +178,7 @@ void lexer_lexify(string fileName)
 
             string_replace(str, "\\n", "\n");
 
-            lexerTokens.push_back(new Token(TokenType::STRING, str, line));
+            lexerTokens.push_back(new Token(pop::TokenType::STRING, str, line));
             continue;
         }
         // NUMBER
@@ -202,90 +209,90 @@ void lexer_lexify(string fileName)
                 number += c;
             }
 
-            lexerTokens.push_back(new Token(TokenType::NUMBER, number, line));
+            lexerTokens.push_back(new Token(pop::TokenType::NUMBER, number, line));
             continue;
         }
         // DOUBLE OPERATORS
         else if (c == '-' && ifs.peek() == '>')
         {
             char next = ifs.get();
-            lexerTokens.push_back(new Token(TokenType::ASSIGN, string(1, c) + string(1, next), line));
+            lexerTokens.push_back(new Token(pop::TokenType::ASSIGN, string(1, c) + string(1, next), line));
         }
         else if (c == '!' && ifs.peek() == '=')
         {
             char next = ifs.get();
-            lexerTokens.push_back(new Token(TokenType::NOT_EQUALS, string(1, c) + string(1, next), line));
+            lexerTokens.push_back(new Token(pop::TokenType::NOT_EQUALS, string(1, c) + string(1, next), line));
         }
         else if (c == '>' && ifs.peek() == '=')
         {
             char next = ifs.get();
-            lexerTokens.push_back(new Token(TokenType::GREATER_THAN_E, string(1, c) + string(1, next), line));
+            lexerTokens.push_back(new Token(pop::TokenType::GREATER_THAN_E, string(1, c) + string(1, next), line));
         }
         else if (c == '<' && ifs.peek() == '=')
         {
             char next = ifs.get();
-            lexerTokens.push_back(new Token(TokenType::LESS_THAN_E, string(1, c) + string(1, next), line));
+            lexerTokens.push_back(new Token(pop::TokenType::LESS_THAN_E, string(1, c) + string(1, next), line));
         }
         // SINGLE CHARACTER OPERATORS
         else if (c == '=')
         {
-            lexerTokens.push_back(new Token(TokenType::EQUALS, string(1, c), line));
+            lexerTokens.push_back(new Token(pop::TokenType::EQUALS, string(1, c), line));
         }
         else if (c == '>')
         {
-            lexerTokens.push_back(new Token(TokenType::GREATER_THAN, string(1, c), line));
+            lexerTokens.push_back(new Token(pop::TokenType::GREATER_THAN, string(1, c), line));
         }
         else if (c == '<')
         {
-            lexerTokens.push_back(new Token(TokenType::LESS_THAN, string(1, c), line));
+            lexerTokens.push_back(new Token(pop::TokenType::LESS_THAN, string(1, c), line));
         }
         else if (c == '+')
         {
-            lexerTokens.push_back(new Token(TokenType::PLUS, string(1, c), line));
+            lexerTokens.push_back(new Token(pop::TokenType::PLUS, string(1, c), line));
         }
         else if (c == '-')
         {
-            lexerTokens.push_back(new Token(TokenType::MINUS, string(1, c), line));
+            lexerTokens.push_back(new Token(pop::TokenType::MINUS, string(1, c), line));
         }
         else if (c == '*')
         {
-            lexerTokens.push_back(new Token(TokenType::MULTIPLY, string(1, c), line));
+            lexerTokens.push_back(new Token(pop::TokenType::MULTIPLY, string(1, c), line));
         }
         else if (c == '/')
         {
-            lexerTokens.push_back(new Token(TokenType::DIVIDE, string(1, c), line));
+            lexerTokens.push_back(new Token(pop::TokenType::DIVIDE, string(1, c), line));
         }
         else if (c == '%')
         {
-            lexerTokens.push_back(new Token(TokenType::MODULUS, string(1, c), line));
+            lexerTokens.push_back(new Token(pop::TokenType::MODULUS, string(1, c), line));
         }
         else if (c == '(')
         {
-            lexerTokens.push_back(new Token(TokenType::OPEN_PARAN, string(1, c), line));
+            lexerTokens.push_back(new Token(pop::TokenType::OPEN_PARAN, string(1, c), line));
         }
         else if (c == ')')
         {
-            lexerTokens.push_back(new Token(TokenType::CLOSE_PARAN, string(1, c), line));
+            lexerTokens.push_back(new Token(pop::TokenType::CLOSE_PARAN, string(1, c), line));
         }
         else if (c == '{')
         {
-            lexerTokens.push_back(new Token(TokenType::OPEN_BRACKET, string(1, c), line));
+            lexerTokens.push_back(new Token(pop::TokenType::OPEN_BRACKET, string(1, c), line));
         }
         else if (c == '}')
         {
-            lexerTokens.push_back(new Token(TokenType::CLOSE_BRACKET, string(1, c), line));
+            lexerTokens.push_back(new Token(pop::TokenType::CLOSE_BRACKET, string(1, c), line));
         }
         else if (c == ',')
         {
-            lexerTokens.push_back(new Token(TokenType::COMMA, string(1, c), line));
+            lexerTokens.push_back(new Token(pop::TokenType::COMMA, string(1, c), line));
         }
         else if (c == '.')
         {
-            lexerTokens.push_back(new Token(TokenType::DOT, string(1, c), line));
+            lexerTokens.push_back(new Token(pop::TokenType::DOT, string(1, c), line));
         }
     }
 
-    lexerTokens.push_back(new Token(TokenType::END_OF_FILE, EMPTY_STRING, line));
+    lexerTokens.push_back(new Token(pop::TokenType::END_OF_FILE, EMPTY_STRING, line));
 
     ifs.close();
 }
@@ -315,373 +322,7 @@ void lexer_delete_tokens()
 
 #pragma region Parser
 
-#pragma region Statements
-
-struct Statement
-{
-    StatementType type;
-
-    Statement(const StatementType& type)
-    {
-        this->type = type;
-    }
-
-    virtual ~Statement() { };
-
-    virtual void print(string padding)
-    {
-        print_type(padding);
-    }
-
-protected:
-    void print_type(string padding)
-    {
-        std::cout << padding << statement_type_name(type) << std::endl;
-    }
-};
-
-struct StatementExpression : Statement
-{
-    Statement* root;
-
-    StatementExpression(Statement* root) : Statement(StatementType::EXPRESSION)
-    {
-        this->root = root;
-    };
-
-    ~StatementExpression() override
-    {
-        delete root;
-    }
-
-    void print(string padding) override
-    {
-        print_type(padding);
-        root->print(padding + '\t');
-    }
-};
-
-struct StatementBinaryOperator : Statement
-{
-    OperatorType operatorType;
-    Statement* left;
-    Statement* right;
-
-    StatementBinaryOperator(const OperatorType& operatorType, Statement* left, Statement* right) : Statement(StatementType::BINARY_OPERATOR)
-    {
-        this->operatorType = operatorType;
-        this->left = left;
-        this->right = right;
-    }
-
-    ~StatementBinaryOperator() override
-    {
-        delete left;
-        delete right;
-    }
-
-    void print(string padding) override
-    {
-        print_type(padding);
-
-        std::cout << padding << operator_type_name(operatorType) << std::endl;
-
-        std::cout << padding << "LEFT:" << std::endl;
-        left->print(padding + '\t');
-        std::cout << padding << "RIGHT:" << std::endl;
-        right->print(padding + '\t');
-    }
-};
-
-struct StatementUnaryOperator : Statement
-{
-    OperatorType operatorType;
-    Statement* root;
-
-    StatementUnaryOperator(const OperatorType& operatorType, Statement* root) : Statement(StatementType::UNARY_OPERATOR)
-    {
-        this->operatorType = operatorType;
-        this->root = root;
-    }
-
-    ~StatementUnaryOperator() override
-    {
-        delete root;
-    }
-
-    void print(string padding) override
-    {
-        print_type(padding);
-
-        std::cout << padding << operator_type_name(operatorType) << std::endl;
-
-        root->print(padding + '\t');
-    }
-};
-
-struct StatementValue : Statement
-{
-    DataType dataType;
-    string value;
-
-    StatementValue(const DataType& dataType, const string& value) : Statement(StatementType::VALUE)
-    {
-        this->dataType = dataType;
-        this->value = value;
-    }
-
-    void print(string padding) override
-    {
-        print_type(padding);
-        std::cout << padding << data_type_name(dataType) << " " << value << std::endl;
-    }
-};
-
-struct StatementSymbol : Statement
-{
-    string symbol;
-
-    StatementSymbol(const string& symbol) : Statement(StatementType::SYMBOL)
-    {
-        this->symbol = symbol;
-    }
-
-    void print(string padding) override
-    {
-        print_type(padding);
-        std::cout << padding << symbol << std::endl;
-    }
-};
-
-struct StatementBlock : Statement
-{
-    vector<Statement*> statements;
-
-    StatementBlock() : Statement(StatementType::BLOCK) { }
-
-    ~StatementBlock() override
-    {
-        for (auto& stmt : statements)
-            delete stmt;
-    }
-
-    void print(string padding) override
-    {
-        print_type(padding);
-        std::cout << padding << "[" << std::endl;
-
-        for (auto stmt : statements)
-            stmt->print(padding + '\t');
-
-        std::cout << padding << "]" << std::endl;
-    }
-};
-
-struct StatementFunction : Statement
-{
-    StatementSymbol* name;
-    vector<StatementSymbol*> params;
-    StatementBlock* body;
-
-    StatementFunction(StatementSymbol* name) : Statement(StatementType::FUNCTION) 
-    {
-        this->name = name;
-    }
-
-    ~StatementFunction() override
-    {
-        delete name;
-        
-        for (auto& stmt : params)
-            delete stmt;
-        
-        delete body;
-    }
-
-    void print(string padding) override
-    {
-        print_type(padding);
-        if (name != nullptr)
-            std::cout << padding << "Name: " << name->symbol << std::endl;
-
-        std::cout << padding << "Params: [" << std::endl;
-
-        for (auto& stmtSymbol : params)
-            std::cout << padding << '\t' << stmtSymbol->symbol << std::endl;
-
-        std::cout << padding << "]" << std::endl;
-        std::cout << padding << "Function Block:" << std::endl;
-
-        if (body != nullptr)
-            body->print(padding + '\t');
-    }
-};
-
-struct StatementReturn : Statement
-{
-    StatementExpression* expression;
-
-    StatementReturn(StatementExpression* expression) : Statement(StatementType::RETURN)
-    {
-        this->expression = expression;
-    }
-
-    ~StatementReturn()
-    {
-        delete expression;
-    }
-
-    void print(string padding) override
-    {
-        print_type(padding);
-        expression->print(padding + '\t');
-    }
-};
-
-struct StatementFunctionCall : Statement
-{
-    StatementSymbol* name;
-    vector<StatementExpression*> argExpressions;
-
-    StatementFunctionCall(StatementSymbol* name) : Statement(StatementType::FUNCTION_CALL)
-    {
-        this->name = name;
-    }
-
-    ~StatementFunctionCall()
-    {
-        delete this->name;
-
-        for (auto& stmt : argExpressions)
-            delete stmt;
-    }
-
-    void print(string padding) override
-    {
-        print_type(padding);
-
-        if (this->name != nullptr)
-            std::cout << padding << "Name: " << this->name->symbol << std::endl;
-        std::cout << padding << "Arg Expressions: [" << std::endl;
-
-        for (auto& stmt : argExpressions)
-            stmt->print(padding + '\t');
-
-        std::cout << padding << "]" << std::endl; 
-    }
-};
-
-struct StatementStruct : Statement
-{
-    StatementSymbol* name;
-    vector<StatementExpression*> variables;
-    vector<StatementFunction*> functions;
-
-    StatementStruct(StatementSymbol* name) : Statement(StatementType::STRUCT)
-    {
-        this->name = name;
-    }
-
-    ~StatementStruct()
-    {
-        delete this->name;
-
-        for (auto& stmt : variables)
-            delete stmt;
-
-        for (auto& stmt : functions)
-            delete stmt;
-    }
-
-    void print(string padding) override
-    {
-        print_type(padding);
-
-        if (this->name != nullptr)
-            std::cout << padding << "Name: " << this->name->symbol << std::endl;
-        std::cout << padding << "Variables: [" << std::endl;
-
-        for (auto& stmt : variables)
-            stmt->print(padding + '\t');
-
-        std::cout << padding << "]" << std::endl;
-        std::cout << padding << "Functions: [" << std::endl;
-
-        for (auto& stmt : functions)
-            stmt->print(padding + '\t');
-
-        std::cout << padding << "]" << std::endl;
-    }
-};
-
-struct StatementElse : Statement
-{
-    StatementBlock* block;
-
-    StatementElse(StatementBlock* block) : Statement(StatementType::ELSE)
-    {
-        this->block = block;
-    }
-
-    ~StatementElse()
-    {
-        delete this->block;
-    }
-
-    void print(string padding) override
-    {
-        print_type(padding);
-        block->print(padding + '\t');
-    }
-};
-
-struct StatementIf : Statement
-{
-    StatementExpression* condition;
-    StatementBlock* block;
-    StatementIf* _elseIf;
-    StatementElse* _else;
-
-    StatementIf(StatementExpression* condition, StatementBlock* block, StatementIf* _elseIf, StatementElse* _else) : Statement(StatementType::IF)
-    {
-        this->condition = condition;
-        this->block = block;
-        this->_elseIf = _elseIf;
-        this->_else = _else;
-    }
-
-    ~StatementIf()
-    {
-        delete this->block;
-
-        if (this->_elseIf != nullptr)
-            delete this->_elseIf;
-
-        if (this->_else != nullptr)
-            delete this->_else;
-    }
-
-    void print(string padding) override
-    {
-        print_type(padding);
-
-        std::cout << padding << "Condition: [" << std::endl;
-
-        condition->print(padding + '\t');
-
-        std::cout << padding << "]" << std::endl;
-
-        block->print(padding + '\t');
-
-        if (this->_elseIf != nullptr)
-            _elseIf->print(padding + '\t');
-        
-        if (this->_else != nullptr)
-            _else->print(padding + '\t');
-    }
-};
-
-#pragma endregion
+#include "statements.hpp"
 
 StatementBlock* parserAstRoot = nullptr;
 unsigned int parserPosition = 0;
@@ -712,7 +353,7 @@ void parser_move_next_token_skip_eols()
 {
     parser_move_next_token();
 
-    while (parser_get_token()->type == TokenType::END_OF_LINE)
+    while (parser_get_token()->type == pop::TokenType::END_OF_LINE)
         parser_move_next_token();
 }
 
@@ -726,12 +367,12 @@ Statement* parser_parse_exp_term()
     Statement* result = nullptr;
 
     // FUNCTION CALL
-    if (parser_get_token()->type == TokenType::SYMBOL && parser_peek_token()->type == TokenType::OPEN_PARAN)
+    if (parser_get_token()->type == pop::TokenType::SYMBOL && parser_peek_token()->type == pop::TokenType::OPEN_PARAN)
     {
         result = parser_parse_function_call();
         return result;
     }
-    if (parser_get_token()->type == TokenType::NUMBER)
+    if (parser_get_token()->type == pop::TokenType::NUMBER)
     {
         bool isDecimal = false;
         for (char c : parser_get_token()->value)
@@ -745,22 +386,22 @@ Statement* parser_parse_exp_term()
             new StatementValue(DataType::FLOAT, parser_get_token()->value) :
             new StatementValue(DataType::INT, parser_get_token()->value);
     }
-    else if (parser_get_token()->type == TokenType::STRING)
+    else if (parser_get_token()->type == pop::TokenType::STRING)
     {
         result = new StatementValue(DataType::STRING, parser_get_token()->value);
     }
-    else if (parser_get_token()->type == TokenType::SYMBOL)
+    else if (parser_get_token()->type == pop::TokenType::SYMBOL)
     {
         result = new StatementSymbol(parser_get_token()->value);
     }
     // NEGATE
-    else if (parser_get_token()->type == TokenType::MINUS)
+    else if (parser_get_token()->type == pop::TokenType::MINUS)
     {
         parser_move_next_token();
         return new StatementUnaryOperator(OperatorType::NEGATE, parser_parse_exp_term());
     }
     // INNER EXPRESSIONS
-    else if (parser_get_token()->type == TokenType::OPEN_PARAN)
+    else if (parser_get_token()->type == pop::TokenType::OPEN_PARAN)
     {
         unsigned int startingLine = parser_get_token()->line;
 
@@ -768,10 +409,10 @@ Statement* parser_parse_exp_term()
 
         result = parser_parse_exp();
 
-        if (parser_get_token()->type != TokenType::CLOSE_PARAN)
+        if (parser_get_token()->type != pop::TokenType::CLOSE_PARAN)
             ERROR("Expected a close paranthesis on line " + std::to_string(startingLine + 1) + ".");
     }
-    else if (parser_get_token()->type == TokenType::_NULL)
+    else if (parser_get_token()->type == pop::TokenType::_NULL)
     {
         result = new StatementValue(DataType::_NULL, EMPTY_STRING);
     }
@@ -785,7 +426,7 @@ Statement* parser_parse_exp_dot()
     stack<Statement*> stmtStack;
     stmtStack.push(parser_parse_exp_term());
 
-    while (parser_get_token()->type == TokenType::DOT)
+    while (parser_get_token()->type == pop::TokenType::DOT)
     {
         parser_move_next_token();
         stmtStack.push(parser_parse_exp_term());
@@ -822,21 +463,21 @@ Statement* parser_parse_exp_muldivmod()
 {
     Statement* left = parser_parse_exp_dot();
 
-    while (parser_get_token()->type == TokenType::MULTIPLY ||
-        parser_get_token()->type == TokenType::DIVIDE ||
-        parser_get_token()->type == TokenType::MODULUS)
+    while (parser_get_token()->type == pop::TokenType::MULTIPLY ||
+        parser_get_token()->type == pop::TokenType::DIVIDE ||
+        parser_get_token()->type == pop::TokenType::MODULUS)
     {
-        if (parser_get_token()->type == TokenType::MULTIPLY)
+        if (parser_get_token()->type == pop::TokenType::MULTIPLY)
         {
             parser_move_next_token();
             left = new StatementBinaryOperator(OperatorType::MULTIPLICATION, left, parser_parse_exp_dot());
         }
-        else if (parser_get_token()->type == TokenType::DIVIDE)
+        else if (parser_get_token()->type == pop::TokenType::DIVIDE)
         {
             parser_move_next_token();
             left = new StatementBinaryOperator(OperatorType::DIVISION, left, parser_parse_exp_dot());
         }
-        else if (parser_get_token()->type == TokenType::MODULUS)
+        else if (parser_get_token()->type == pop::TokenType::MODULUS)
         {
             parser_move_next_token();
             left = new StatementBinaryOperator(OperatorType::MODULUS, left, parser_parse_exp_dot());
@@ -850,15 +491,15 @@ Statement* parser_parse_exp_addsub()
 {
     Statement* left = parser_parse_exp_muldivmod();
 
-    while (parser_get_token()->type == TokenType::PLUS ||
-        parser_get_token()->type == TokenType::MINUS)
+    while (parser_get_token()->type == pop::TokenType::PLUS ||
+        parser_get_token()->type == pop::TokenType::MINUS)
     {
-        if (parser_get_token()->type == TokenType::PLUS)
+        if (parser_get_token()->type == pop::TokenType::PLUS)
         {
             parser_move_next_token();
             left = new StatementBinaryOperator(OperatorType::ADDITION, left, parser_parse_exp_muldivmod());
         }
-        else if (parser_get_token()->type == TokenType::MINUS)
+        else if (parser_get_token()->type == pop::TokenType::MINUS)
         {
             parser_move_next_token();
             left = new StatementBinaryOperator(OperatorType::SUBTRACTION, left, parser_parse_exp_muldivmod());
@@ -872,39 +513,39 @@ Statement* parser_parse_equality()
 {
     Statement* left = parser_parse_exp_addsub();
 
-    while (parser_get_token()->type == TokenType::EQUALS ||
-        parser_get_token()->type == TokenType::NOT_EQUALS ||
-        parser_get_token()->type == TokenType::GREATER_THAN ||
-        parser_get_token()->type == TokenType::LESS_THAN ||
-        parser_get_token()->type == TokenType::GREATER_THAN_E ||
-        parser_get_token()->type == TokenType::LESS_THAN_E)
+    while (parser_get_token()->type == pop::TokenType::EQUALS ||
+        parser_get_token()->type == pop::TokenType::NOT_EQUALS ||
+        parser_get_token()->type == pop::TokenType::GREATER_THAN ||
+        parser_get_token()->type == pop::TokenType::LESS_THAN ||
+        parser_get_token()->type == pop::TokenType::GREATER_THAN_E ||
+        parser_get_token()->type == pop::TokenType::LESS_THAN_E)
     {
-        if (parser_get_token()->type == TokenType::EQUALS)
+        if (parser_get_token()->type == pop::TokenType::EQUALS)
         {
             parser_move_next_token();
             left = new StatementBinaryOperator(OperatorType::EQUALS, left, parser_parse_exp_addsub());
         }
-        else if (parser_get_token()->type == TokenType::NOT_EQUALS)
+        else if (parser_get_token()->type == pop::TokenType::NOT_EQUALS)
         {
             parser_move_next_token();
             left = new StatementBinaryOperator(OperatorType::NOT_EQUALS, left, parser_parse_exp_addsub());
         }
-        else if (parser_get_token()->type == TokenType::GREATER_THAN)
+        else if (parser_get_token()->type == pop::TokenType::GREATER_THAN)
         {
             parser_move_next_token();
             left = new StatementBinaryOperator(OperatorType::GREATER_THAN, left, parser_parse_exp_addsub());
         }
-        else if (parser_get_token()->type == TokenType::LESS_THAN)
+        else if (parser_get_token()->type == pop::TokenType::LESS_THAN)
         {
             parser_move_next_token();
             left = new StatementBinaryOperator(OperatorType::LESS_THAN, left, parser_parse_exp_addsub());
         }
-        else if (parser_get_token()->type == TokenType::GREATER_THAN_E)
+        else if (parser_get_token()->type == pop::TokenType::GREATER_THAN_E)
         {
             parser_move_next_token();
             left = new StatementBinaryOperator(OperatorType::GREATER_THAN_E, left, parser_parse_exp_addsub());
         }
-        else if (parser_get_token()->type == TokenType::LESS_THAN_E)
+        else if (parser_get_token()->type == pop::TokenType::LESS_THAN_E)
         {
             parser_move_next_token();
             left = new StatementBinaryOperator(OperatorType::LESS_THAN_E, left, parser_parse_exp_addsub());
@@ -918,15 +559,15 @@ Statement* parser_parse_andor()
 {
     Statement* left = parser_parse_equality();
 
-    while (parser_get_token()->type == TokenType::AND ||
-        parser_get_token()->type == TokenType::OR)
+    while (parser_get_token()->type == pop::TokenType::AND ||
+        parser_get_token()->type == pop::TokenType::OR)
     {
-        if (parser_get_token()->type == TokenType::AND)
+        if (parser_get_token()->type == pop::TokenType::AND)
         {
             parser_move_next_token();
             left = new StatementBinaryOperator(OperatorType::AND, left, parser_parse_equality());
         }
-        else if (parser_get_token()->type == TokenType::OR)
+        else if (parser_get_token()->type == pop::TokenType::OR)
         {
             parser_move_next_token();
             left = new StatementBinaryOperator(OperatorType::OR, left, parser_parse_equality());
@@ -941,7 +582,7 @@ Statement* parser_parse_exp_assign()
     stack<Statement*> stmtStack;
     stmtStack.push(parser_parse_andor());
 
-    while (parser_get_token()->type == TokenType::ASSIGN)
+    while (parser_get_token()->type == pop::TokenType::ASSIGN)
     {
         parser_move_next_token();
         stmtStack.push(parser_parse_andor());
@@ -988,14 +629,14 @@ StatementBlock* parser_parse_block()
 {
     StatementBlock* block = new StatementBlock();
 
-    if (parser_get_token()->type != TokenType::OPEN_BRACKET)
+    if (parser_get_token()->type != pop::TokenType::OPEN_BRACKET)
         ERROR("Missing an open bracket on line " + std::to_string(parser_get_token()->line + 1) + ".");
 
     unsigned int startingLine = parser_get_token()->line;
 
     parser_move_next_token();
 
-    while (parser_get_token()->type != TokenType::END_OF_FILE)
+    while (parser_get_token()->type != pop::TokenType::END_OF_FILE)
     {
         auto stmt = parser_parse_statement();
 
@@ -1003,17 +644,17 @@ StatementBlock* parser_parse_block()
             block->statements.push_back(stmt);
 
         // if we encounter a close bracket then we are at the end of the block
-        if (parser_get_token()->type == TokenType::CLOSE_BRACKET)
+        if (parser_get_token()->type == pop::TokenType::CLOSE_BRACKET)
             break;
 
         // statements should end with an end of line
-        if (parser_get_token()->type != TokenType::END_OF_LINE && parser_get_token()->type != TokenType::END_OF_FILE)
+        if (parser_get_token()->type != pop::TokenType::END_OF_LINE && parser_get_token()->type != pop::TokenType::END_OF_FILE)
             ERROR("Expected the end of a statment on line " + std::to_string(parser_get_token()->line + 1) + " but got [" + parser_get_token()->value + "].");
 
         parser_move_next_token();
     }
 
-    if (parser_get_token()->type != TokenType::CLOSE_BRACKET)
+    if (parser_get_token()->type != pop::TokenType::CLOSE_BRACKET)
         ERROR("Expected a close bracket on line " + std::to_string(startingLine + 1) + ".");
 
     parser_move_next_token();
@@ -1029,30 +670,30 @@ StatementFunction* parser_parse_function()
 
     parser_move_next_token();
 
-    if (parser_get_token()->type != TokenType::OPEN_PARAN)
+    if (parser_get_token()->type != pop::TokenType::OPEN_PARAN)
         ERROR("Missing an open paranthesis on line " + std::to_string(parser_get_token()->line + 1) + ".");
 
     unsigned int startingLine = parser_get_token()->line;
 
-    while (parser_get_token()->type != TokenType::END_OF_FILE)
+    while (parser_get_token()->type != pop::TokenType::END_OF_FILE)
     {
         parser_move_next_token();
 
-        if (parser_get_token()->type == TokenType::CLOSE_PARAN)
+        if (parser_get_token()->type == pop::TokenType::CLOSE_PARAN)
             break;
 
-        if (parser_get_token()->type == TokenType::SYMBOL)
+        if (parser_get_token()->type == pop::TokenType::SYMBOL)
             function->params.push_back(new StatementSymbol(parser_get_token()->value));
         else
             ERROR("Expected a symbol on line " + std::to_string(parser_get_token()->line + 1) + " but got " + parser_get_token()->value + ".");
         
         parser_move_next_token();
 
-        if (parser_get_token()->type != TokenType::COMMA)
+        if (parser_get_token()->type != pop::TokenType::COMMA)
             break;
     }
 
-    if (parser_get_token()->type != TokenType::CLOSE_PARAN)
+    if (parser_get_token()->type != pop::TokenType::CLOSE_PARAN)
         ERROR("Missing a close paranthesis on line " + std::to_string(startingLine + 1) + ".");
 
     parser_move_next_token_skip_eols();
@@ -1071,20 +712,20 @@ StatementFunctionCall* parser_parse_function_call()
 
     unsigned int startingLine = parser_get_token()->line;
 
-    while (parser_get_token()->type != TokenType::CLOSE_PARAN && parser_get_token()->type != TokenType::END_OF_FILE)
+    while (parser_get_token()->type != pop::TokenType::CLOSE_PARAN && parser_get_token()->type != pop::TokenType::END_OF_FILE)
     {
         functionCall->argExpressions.push_back(parser_parse_exp());
 
-        if (parser_get_token()->type == TokenType::CLOSE_PARAN)
+        if (parser_get_token()->type == pop::TokenType::CLOSE_PARAN)
             break;
 
-        if (parser_get_token()->type != TokenType::COMMA)
+        if (parser_get_token()->type != pop::TokenType::COMMA)
             ERROR("Missing a comma to seperate expressions on line " + std::to_string(parser_get_token()->line) + " got [" + parser_get_token()->value + "].");
         
         parser_move_next_token();
     }
 
-    if (parser_get_token()->type != TokenType::CLOSE_PARAN)
+    if (parser_get_token()->type != pop::TokenType::CLOSE_PARAN)
         ERROR("Expected a close parenthesis on line " + std::to_string(startingLine + 1) + ".");
 
     parser_move_next_token();
@@ -1096,14 +737,14 @@ StatementStruct* parser_parse_struct()
 {
     parser_move_next_token();
 
-    if (parser_get_token()->type != TokenType::SYMBOL)
+    if (parser_get_token()->type != pop::TokenType::SYMBOL)
         ERROR("Missing a name of struct on line " + std::to_string(parser_get_token()->line) + ".");
 
     auto _struct = new StatementStruct(new StatementSymbol(parser_get_token()->value));
 
     parser_move_next_token_skip_eols();
 
-    if (parser_get_token()->type != TokenType::OPEN_BRACKET)
+    if (parser_get_token()->type != pop::TokenType::OPEN_BRACKET)
         ERROR("Missing an open bracket on line " + std::to_string(parser_get_token()->line) + ".");
 
     parser_move_next_token_skip_eols();
@@ -1111,15 +752,15 @@ StatementStruct* parser_parse_struct()
     unsigned int startingLine = parser_get_token()->line;
 
     // parse variables and functions in structure
-    while (parser_get_token()->type != TokenType::CLOSE_BRACKET && parser_get_token()->type != TokenType::END_OF_FILE)
+    while (parser_get_token()->type != pop::TokenType::CLOSE_BRACKET && parser_get_token()->type != pop::TokenType::END_OF_FILE)
     {
         // VARIABLE
-        if (parser_get_token()->type == TokenType::SYMBOL && parser_peek_token()->type == TokenType::ASSIGN)
+        if (parser_get_token()->type == pop::TokenType::SYMBOL && parser_peek_token()->type == pop::TokenType::ASSIGN)
         {
             _struct->variables.push_back(parser_parse_exp());
         }
         // FUNCTION
-        else if (parser_get_token()->type == TokenType::FUNCITON)
+        else if (parser_get_token()->type == pop::TokenType::FUNCITON)
         {
             _struct->functions.push_back(parser_parse_function());
         }
@@ -1128,17 +769,17 @@ StatementStruct* parser_parse_struct()
             ERROR("Invalid statement in struct on line " + std::to_string(parser_get_token()->line) + " got [" + parser_get_token()->value + "].");
         }
 
-        if (parser_get_token()->type == TokenType::CLOSE_BRACKET)
+        if (parser_get_token()->type == pop::TokenType::CLOSE_BRACKET)
             break;
 
         // make sure that we've reached the end of the statement
-        if (parser_get_token()->type != TokenType::END_OF_LINE && parser_get_token()->type != TokenType::END_OF_FILE)
+        if (parser_get_token()->type != pop::TokenType::END_OF_LINE && parser_get_token()->type != pop::TokenType::END_OF_FILE)
             ERROR("Expected the end of a statment on line " + std::to_string(parser_get_token()->line + 1) + " but got [" + parser_get_token()->value + "].");
 
         parser_move_next_token_skip_eols();
     }
 
-    if (parser_get_token()->type != TokenType::CLOSE_BRACKET)
+    if (parser_get_token()->type != pop::TokenType::CLOSE_BRACKET)
         ERROR("Missing closing bracket on line " + std::to_string(startingLine + 1) + ".");
 
     parser_move_next_token();
@@ -1158,24 +799,24 @@ StatementIf* parser_parse_if()
 
     auto exp = parser_parse_exp();
 
-    if (parser_get_token()->type == TokenType::END_OF_LINE)
+    if (parser_get_token()->type == pop::TokenType::END_OF_LINE)
         parser_move_next_token_skip_eols();
 
     auto block = parser_parse_block();
 
     unsigned int pos = parserPosition;
 
-    if (parser_get_token()->type == TokenType::END_OF_LINE)
+    if (parser_get_token()->type == pop::TokenType::END_OF_LINE)
         parser_move_next_token_skip_eols();
 
     auto _if = new StatementIf(exp, block, nullptr, nullptr);
 
-    if (parser_get_token()->type == TokenType::ELSE && parser_peek_token()->type == TokenType::IF)
+    if (parser_get_token()->type == pop::TokenType::ELSE && parser_peek_token()->type == pop::TokenType::IF)
     {
         parser_move_next_token();
         _if->_elseIf = parser_parse_if();
     }
-    else if (parser_get_token()->type == TokenType::ELSE)
+    else if (parser_get_token()->type == pop::TokenType::ELSE)
     {
         _if->_else = parser_parse_else();
     }
@@ -1192,35 +833,35 @@ Statement* parser_parse_statement()
 {
     Statement* result = nullptr;
 
-    if (parser_get_token()->type == TokenType::IF)
+    if (parser_get_token()->type == pop::TokenType::IF)
     {
         result = parser_parse_if();
     }
     // FUNCTION CALL
-    else if (parser_get_token()->type == TokenType::SYMBOL && parser_peek_token()->type == TokenType::OPEN_PARAN)
+    else if (parser_get_token()->type == pop::TokenType::SYMBOL && parser_peek_token()->type == pop::TokenType::OPEN_PARAN)
     {
         result = parser_parse_function_call();
     }
     // EXPRESSIONS
-    else if (parser_get_token()->type == TokenType::NUMBER ||
-        parser_get_token()->type == TokenType::STRING ||
-        parser_get_token()->type == TokenType::SYMBOL ||
-        parser_get_token()->type == TokenType::MINUS ||
-        parser_get_token()->type == TokenType::OPEN_PARAN)
+    else if (parser_get_token()->type == pop::TokenType::NUMBER ||
+        parser_get_token()->type == pop::TokenType::STRING ||
+        parser_get_token()->type == pop::TokenType::SYMBOL ||
+        parser_get_token()->type == pop::TokenType::MINUS ||
+        parser_get_token()->type == pop::TokenType::OPEN_PARAN)
     {
         result = parser_parse_exp();
     }
     // FUNCTIONS
-    else if (parser_get_token()->type == TokenType::FUNCITON)
+    else if (parser_get_token()->type == pop::TokenType::FUNCITON)
     {
         result = parser_parse_function();
     }
-    else if (parser_get_token()->type == TokenType::STRUCT)
+    else if (parser_get_token()->type == pop::TokenType::STRUCT)
     {
         result = parser_parse_struct();
     }
     // RETURNS
-    else if (parser_get_token()->type == TokenType::RETURN)
+    else if (parser_get_token()->type == pop::TokenType::RETURN)
     {
         parser_move_next_token();
         result = new StatementReturn(parser_parse_exp());
@@ -1236,7 +877,7 @@ void parser_parse_statements()
         parserAstRoot = new StatementBlock();
 
     // read until the end of the file
-    while (parser_get_token()->type != TokenType::END_OF_FILE)
+    while (parser_get_token()->type != pop::TokenType::END_OF_FILE)
     {
         auto stmt = parser_parse_statement();
 
@@ -1244,7 +885,7 @@ void parser_parse_statements()
             parserAstRoot->statements.push_back(stmt);
 
         // statements should end with an end of line
-        if (parser_get_token()->type != TokenType::END_OF_LINE && parser_get_token()->type != TokenType::END_OF_FILE)
+        if (parser_get_token()->type != pop::TokenType::END_OF_LINE && parser_get_token()->type != pop::TokenType::END_OF_FILE)
             ERROR("Expected the end of a statment on line " + std::to_string(parser_get_token()->line + 1) + " but got [" + parser_get_token()->value + "].");
 
         parser_move_next_token();
