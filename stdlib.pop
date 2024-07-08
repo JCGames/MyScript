@@ -1,0 +1,18 @@
+// Used for printing out messages without new lines to the console.
+fn print(msg)
+{
+    __OUT__ -> msg
+}
+
+// Used for printing messages with new lines to the console.
+fn println(msg)
+{
+    __OUT__ -> msg
+    __OUT__ -> "\n"
+}
+
+// Used for printing new lines to the console.
+fn println()
+{
+    __OUT__ -> "\n"
+}

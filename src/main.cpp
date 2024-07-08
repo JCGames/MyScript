@@ -4,6 +4,7 @@ int main(int argc, char** argv)
 {
     if (argc > 1)
     {
+        lexer_lexify("stdlib.pop");
         lexer_lexify(argv[1]);
         // lexer_print_tokens();
 

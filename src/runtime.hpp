@@ -9,8 +9,6 @@ struct Object;
 
 vector<std::shared_ptr<Object>> heap;
 stack<std::shared_ptr<Object>> _stack;
-bool isReturned = false;
-bool isBroke = false;
 
 struct Object
 {
@@ -83,6 +81,7 @@ struct Object
             case DataType::FLOAT: return std::to_string(*(float*)value);
             case DataType::BOOL: return std::to_string(*(bool*)value);
             case DataType::STRING: return *(string*)value;
+            case DataType::_NULL: return "Null";
         }
 
         return "Object?";
@@ -524,11 +523,11 @@ struct Scope
     Scope* parent;
     map<string, StatementFunction*> functions;
     map<string, size_t> variables;
-    size_t baseAddressInHeap;
+    size_t baseAddress;
 
     Scope(Scope* parent, StatementBlock* block)
     {
-        this->baseAddressInHeap = heap.size() - 1;
+        this->baseAddress = heap.size() > 0 ? heap.size() - 1 : 0;
         this->parent = parent;
 
         for (auto& stmt : block->statements)
@@ -536,59 +535,81 @@ struct Scope
             if (stmt->type == StatementType::FUNCTION)
             {
                 auto func = CAST(stmt, StatementFunction);
-                functions[func->name->symbol] = func;
+                functions[func->name->symbol + std::to_string(func->params.size())] = func;
             }
         }
     }
 
-    ~Scope()
-    {
-        // clean up variables on heap
-        // for (auto it = heap.end(); it != heap.begin() + baseAddressInHeap; --it)
-        // {
-        //     heap.erase(it);
-        // }
-    }
-
-    bool has_var(const string& name)
+    bool has_var_in_this_scope(const string& name)
     {
         return variables.find(name) != variables.end();
     }
 
-    bool has_func(const string& name)
+    bool has_fun_in_this_scope(const string& name)
     {
         return functions.find(name) != functions.end();
     }
 
-    size_t get_var_pointer(const string& name)
+    size_t* get_var_pointer(const string& name)
     {
-        if (has_var(name))
-            return variables[name];
+        if (has_var_in_this_scope(name))
+        {
+            return &variables[name];
+        }
+        else if (parent != nullptr)
+        {
+            return parent->get_var_pointer(name);
+        }
         
-        return -1;
-    }
-
-    void set_var(const string& name, std::shared_ptr<Object> value)
-    {
-        if (has_var(name))
-        {
-            heap[variables[name]] = value;
-        }
-        else
-        {
-            heap.push_back(value); // add the value to the heap
-            variables[name] = heap.size() - 1; // map the address to the variable name
-        }
+        return nullptr;
     }
 
     StatementFunction* get_func(const string& name)
     {
-        if (has_func(name))
+        if (has_fun_in_this_scope(name))
+        {
             return functions[name];
+        }
+        else if (parent != nullptr)
+        {
+            return parent->get_func(name);
+        }
 
         return nullptr;
     }
+
+    void set_var(const string& name, std::shared_ptr<Object> value)
+    {
+        if (auto pointer = get_var_pointer(name))
+        {
+            heap[*pointer] = value;
+            return;
+        }
+
+        heap.push_back(value); // add the value to the heap
+        variables[name] = heap.size() - 1; // map the address to the variable name
+    }
+
+    void print_variables()
+    {
+        if (parent != nullptr)
+            parent->print_variables();
+
+        for (auto& variable : variables)
+            std::cout << variable.first << " " << heap[variable.second]->to_string() << std::endl;
+    }
+
+    void print_functions()
+    {
+        if (parent != nullptr)
+            parent->print_functions();
+
+        for (auto& function : functions)
+            std::cout << function.first << std::endl;
+    }
 };
+
+void rt_run_statement(Statement* stmt, Scope& scope);
 
 void rt_run_exp(Statement* stmt, Scope& scope)
 {
@@ -612,6 +633,9 @@ void rt_run_exp(Statement* stmt, Scope& scope)
 
                 auto value = _stack.top();
 
+                if (symbol->symbol == "__OUT__")
+                    std::cout << value->to_string();
+
                 scope.set_var(symbol->symbol, value);
 
                 break;
@@ -622,19 +646,19 @@ void rt_run_exp(Statement* stmt, Scope& scope)
 
             switch (binaryOperator->operatorType)
             {
-                case OperatorType::ADDITION: Object::add(); break;
-                case OperatorType::SUBTRACTION: Object::sub(); break;
-                case OperatorType::MULTIPLICATION: Object::mul(); break;
-                case OperatorType::DIVISION: Object::div(); break;
-                case OperatorType::MODULUS: Object::mod(); break;
-                case OperatorType::EQUALS: Object::eql(); break;
-                case OperatorType::NOT_EQUALS: Object::neq(); break;
-                case OperatorType::GREATER_THAN_E: Object::gte(); break;
-                case OperatorType::LESS_THAN_E: Object::lte(); break;
-                case OperatorType::GREATER_THAN: Object::gth(); break;
-                case OperatorType::LESS_THAN: Object::lth(); break;
-                case OperatorType::AND: Object::_an(); break;
-                case OperatorType::OR: Object::_or(); break;
+                case OperatorType::ADDITION:        Object::add(); break;
+                case OperatorType::SUBTRACTION:     Object::sub(); break;
+                case OperatorType::MULTIPLICATION:  Object::mul(); break;
+                case OperatorType::DIVISION:        Object::div(); break;
+                case OperatorType::MODULUS:         Object::mod(); break;
+                case OperatorType::EQUALS:          Object::eql(); break;
+                case OperatorType::NOT_EQUALS:      Object::neq(); break;
+                case OperatorType::GREATER_THAN_E:  Object::gte(); break;
+                case OperatorType::LESS_THAN_E:     Object::lte(); break;
+                case OperatorType::GREATER_THAN:    Object::gth(); break;
+                case OperatorType::LESS_THAN:       Object::lth(); break;
+                case OperatorType::AND:             Object::_an(); break;
+                case OperatorType::OR:              Object::_or(); break;
             }
         }
             break;
@@ -678,9 +702,9 @@ void rt_run_exp(Statement* stmt, Scope& scope)
         {
             auto symbol = CAST(stmt, StatementSymbol);
 
-            if (scope.has_var(symbol->symbol))
+            if (auto pointer = scope.get_var_pointer(symbol->symbol))
             {
-                _stack.push(heap[scope.get_var_pointer(symbol->symbol)]);
+                _stack.push(heap[*pointer]);
             }
             else
             {
@@ -689,6 +713,31 @@ void rt_run_exp(Statement* stmt, Scope& scope)
         }
             break;
     }
+}
+
+void rt_run_function(StatementFunctionCall* functionCall, Scope& scope)
+{
+    if (auto func = scope.get_func(functionCall->name->symbol + std::to_string(functionCall->argExpressions.size())))
+    {
+        Scope funcScope(&scope, func->body);
+
+        for (size_t i = 0; i < func->params.size(); ++i) 
+        {
+            rt_run_exp(functionCall->argExpressions[i], scope);
+
+            auto result = _stack.top();
+            _stack.pop();
+
+            funcScope.set_var(func->params[i]->symbol, result);
+        }
+
+        rt_run_statement(func->body, funcScope);
+    }
+    else
+    {
+        ERROR("Wrong number of arguemnts for function " + functionCall->name->symbol + std::to_string(functionCall->argExpressions.size()));
+    }
+
 }
  
 void rt_run_statement(Statement* stmt, Scope& scope)
@@ -726,6 +775,10 @@ void rt_run_statement(Statement* stmt, Scope& scope)
         }
             break;
         case StatementType::FUNCTION_CALL:
+        {
+            auto funcCall = CAST(stmt, StatementFunctionCall);
+            rt_run_function(funcCall, scope);
+        }
             break;
     }
 }
@@ -733,6 +786,9 @@ void rt_run_statement(Statement* stmt, Scope& scope)
 void rt_run(StatementBlock* ast = parserAstRoot)
 {
     Scope scope(nullptr, ast);
+
+    scope.set_var("__OUT__", std::make_shared<Object>());
+
     rt_run_statement(ast, scope);
 }
 

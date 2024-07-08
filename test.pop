@@ -1,4 +1,6 @@
-name -> "Bob"
-age -> "32"
+fn add(a, b)
+{
+    println(1 + 1)
+}
 
-name + " " + age
+add(1, 1)

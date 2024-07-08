@@ -140,6 +140,15 @@ struct Token
 
 vector<Token*> tokens;
 
+bool string_replace(std::string& str, const std::string& from, const std::string& to) 
+{
+    size_t start_pos = str.find(from);
+    if(start_pos == std::string::npos)
+        return false;
+    str.replace(start_pos, from.length(), to);
+    return true;
+}
+
 void lexer_lexify(string fileName)
 {
     ifstream ifs(fileName);
@@ -154,6 +163,14 @@ void lexer_lexify(string fileName)
     while (!ifs.eof())
     {
         c = ifs.get();
+
+        if (c == '/' && ifs.peek() == '/')
+        {
+            while (!ifs.eof() && ifs.peek() != '\n')
+                ifs.get();
+
+            continue;
+        }
 
         // END_OF_LINE
         if (c == '\n')
@@ -237,6 +254,8 @@ void lexer_lexify(string fileName)
 
             if (c != '"')
                 ERROR("Missing a closing quotes on line " + std::to_string(beginLine + 1) + ".");
+
+            string_replace(str, "\\n", "\n");
 
             tokens.push_back(new Token(TokenType::STRING, str, line));
             continue;
