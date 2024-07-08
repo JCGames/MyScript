@@ -1,3 +1,21 @@
+// Displays all of the variables in the current scope tree.
+fn all_variables()
+{
+    __VARS__()
+}
+
+// Displays all of the functions in the current scope tree.
+fn all_functions()
+{
+    __FUNCS__()
+}
+
+// Displays all of the scopes in the current scope tree.
+fn all_scopes()
+{
+    __SCOPES__()
+}
+
 // Used for printing out messages without new lines to the console.
 fn print(msg)
 {
@@ -15,4 +33,9 @@ fn println(msg)
 fn println()
 {
     __OUT__ -> "\n"
+}
+
+fn getline()
+{
+    return __IN__()
 }

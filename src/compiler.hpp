@@ -8,6 +8,7 @@
 #include <stack>
 #include <cstring>
 #include <map>
+#include <sstream>
 
 // can save space in binary file to remove debug code
 #define DEBUG
@@ -1365,6 +1366,8 @@ StatementIf* parser_parse_if()
 
     auto block = parser_parse_block();
 
+    unsigned int pos = parserPosition;
+
     if (parser_get_token()->type == TokenType::END_OF_LINE)
         parser_move_next_token_skip_eols();
 
@@ -1378,6 +1381,10 @@ StatementIf* parser_parse_if()
     else if (parser_get_token()->type == TokenType::ELSE)
     {
         _if->_else = parser_parse_else();
+    }
+    else
+    {
+        parserPosition = pos;
     }
 
     return _if;

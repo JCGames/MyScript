@@ -523,12 +523,15 @@ struct Scope
     Scope* parent;
     map<string, StatementFunction*> functions;
     map<string, size_t> variables;
-    size_t baseAddress;
+    bool isReturned = false;
+    string functionName = EMPTY_STRING;
 
     Scope(Scope* parent, StatementBlock* block)
     {
-        this->baseAddress = heap.size() > 0 ? heap.size() - 1 : 0;
         this->parent = parent;
+
+        if (parent != nullptr)
+            functionName = parent->functionName;
 
         for (auto& stmt : block->statements)
         {
@@ -537,6 +540,17 @@ struct Scope
                 auto func = CAST(stmt, StatementFunction);
                 functions[func->name->symbol + std::to_string(func->params.size())] = func;
             }
+        }
+    }
+
+    void do_return(string functionName)
+    {
+        if (this->functionName == functionName)
+        {
+            isReturned = true;
+
+            if (parent != nullptr)
+                parent->do_return(functionName);
         }
     }
 
@@ -607,9 +621,22 @@ struct Scope
         for (auto& function : functions)
             std::cout << function.first << std::endl;
     }
+
+    void print_scopes()
+    {
+        std::cout << "=======================" << std::endl;
+        std::cout << "Scope Parent: " << parent << std::endl;
+        std::cout << "Function Name: " << functionName << std::endl;
+        std::cout << "Is Returned: " << isReturned << std::endl;
+        std::cout << "=======================" << std::endl;
+
+        if (parent != nullptr)
+            parent->print_scopes();
+    }
 };
 
 void rt_run_statement(Statement* stmt, Scope& scope);
+void rt_run_function(StatementFunctionCall* functionCall, Scope& scope);
 
 void rt_run_exp(Statement* stmt, Scope& scope)
 {
@@ -712,6 +739,22 @@ void rt_run_exp(Statement* stmt, Scope& scope)
             }
         }
             break;
+        case StatementType::FUNCTION_CALL:
+        {
+            auto funcCall = CAST(stmt, StatementFunctionCall);
+
+            if (funcCall->name->symbol == "__IN__")
+            {
+                string line;
+                std::getline(std::cin, line);
+                _stack.push(std::make_shared<Object>(new string(line)));
+                scope.do_return(scope.functionName);
+                break;
+            }
+
+            rt_run_function(funcCall, scope);
+        }
+            break;
     }
 }
 
@@ -720,6 +763,12 @@ void rt_run_function(StatementFunctionCall* functionCall, Scope& scope)
     if (auto func = scope.get_func(functionCall->name->symbol + std::to_string(functionCall->argExpressions.size())))
     {
         Scope funcScope(&scope, func->body);
+
+        std::ostringstream oss;
+        oss << &funcScope;
+        string address = oss.str();
+
+        funcScope.functionName = func->name->symbol + std::to_string(functionCall->argExpressions.size()) + ":" + address;
 
         for (size_t i = 0; i < func->params.size(); ++i) 
         {
@@ -750,8 +799,13 @@ void rt_run_statement(Statement* stmt, Scope& scope)
             
             Scope blockScope(&scope, block);
             
-            for (auto& s : block->statements)
+            for (auto& s : block->statements) 
+            {
                 rt_run_statement(s, blockScope);
+
+                if (blockScope.isReturned == true)
+                    break;
+            }
         }
             break;
         case StatementType::EXPRESSION:
@@ -777,7 +831,68 @@ void rt_run_statement(Statement* stmt, Scope& scope)
         case StatementType::FUNCTION_CALL:
         {
             auto funcCall = CAST(stmt, StatementFunctionCall);
+
+            if (funcCall->name->symbol == "__VARS__")
+            {
+                scope.print_variables();
+                break;
+            }
+            else if (funcCall->name->symbol == "__FUNCS__")
+            {
+                scope.print_functions();
+                break;
+            }
+            else if (funcCall->name->symbol == "__SCOPES__")
+            {
+                scope.print_scopes();
+                break;
+            }
+
             rt_run_function(funcCall, scope);
+        }
+            break;
+        case StatementType::IF:
+        {
+            auto _if = CAST(stmt, StatementIf);
+            
+            Scope ifScope(&scope, _if->block);
+
+            rt_run_exp(_if->condition, scope);
+
+            auto result = _stack.top();
+            _stack.pop();
+
+            if ((result->type == DataType::BOOL && *(bool*)result->value == true) ||
+                (result->type == DataType::INT && *(int*)result->value > 0))
+            {
+                rt_run_statement(_if->block, ifScope);
+            }
+            else if (_if->_elseIf != nullptr)
+            {
+                rt_run_statement(_if->_elseIf, scope);
+            }
+            else if (_if->_else != nullptr)
+            {
+                rt_run_statement(_if->_else, scope);
+            }
+        }
+            break;
+        case StatementType::ELSE:
+        {
+            auto _else = CAST(stmt, StatementElse);
+
+            Scope elseScope(&scope, _else->block);
+
+            rt_run_statement(_else->block, elseScope);
+        }
+            break;
+        case StatementType::RETURN:
+        {
+            auto _return = CAST(stmt, StatementReturn);
+
+            rt_run_exp(_return->expression, scope);
+            
+            scope.do_return(scope.functionName);
         }
             break;
     }
