@@ -16,7 +16,8 @@ enum class StatementType
     FUNCTION_CALL,
     STRUCT,
     IF,
-    ELSE
+    ELSE,
+    NAMESPACE
 };
 
 std::string statement_type_name(StatementType type)
@@ -35,6 +36,7 @@ std::string statement_type_name(StatementType type)
         case StatementType::STRUCT: return "STRUCT";
         case StatementType::IF: return "IF";
         case StatementType::ELSE: return "ELSE";
+        case StatementType::NAMESPACE: return "NAMESPACE";
         default: return "That was not a statement type";
     }
 }

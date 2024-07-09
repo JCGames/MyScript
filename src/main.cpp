@@ -13,20 +13,26 @@ int main(int argc, char** argv)
         auto libPathStr = libPath.to_string();
         auto fileNames = libPath.get_files();
 
+        auto ast = new StatementBlock();
+
         // include standard libraries
         for (auto& fileName : fileNames)
+        {
             lexer_lexify(libPathStr + "/" + fileName);
+            auto block = parser_parse_statements();
+            ast->statements.push_back(block);
+        }
 
         lexer_lexify(argv[1]);
-        // lexer_print_tokens();
+        auto block = parser_parse_statements();
+        ast->statements.push_back(block);
 
-        parser_parse_statements();
-        // parserAstRoot->print(EMPTY_STRING);
+        lexer_print_tokens();
+        ast->print(EMPTY_STRING);
 
-        rt_run(parserAstRoot);
+        rt_run(ast);
 
         // do deletes
         lexer_delete_tokens();
-        delete parserAstRoot;
     }
 }

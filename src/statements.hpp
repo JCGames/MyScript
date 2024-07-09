@@ -149,7 +149,15 @@ struct StatementBlock : Statement
 {
     std::vector<Statement*> statements;
 
-    StatementBlock() : Statement(StatementType::BLOCK) { }
+    StatementBlock() : Statement(StatementType::BLOCK)
+    {
+        
+    }
+
+    StatementBlock(bool isNamespace) : Statement(StatementType::NAMESPACE)
+    {
+        
+    }
 
     ~StatementBlock() override
     {
@@ -169,21 +177,42 @@ struct StatementBlock : Statement
     }
 };
 
+struct StatementBlockNamespace : StatementBlock
+{
+    std::string name;
+
+    StatementBlockNamespace(std::string name) : StatementBlock(true)
+    {
+        this->name = name;
+    }
+
+    void print(std::string padding) override
+    {
+        print_type(padding);
+
+        std::cout << padding << name << " ";
+        std::cout << "[" << std::endl;
+
+        for (auto stmt : statements)
+            stmt->print(padding + '\t');
+
+        std::cout << padding << "]" << std::endl;
+    }
+};
+
 struct StatementFunction : Statement
 {
-    StatementSymbol* name;
+    std::string name;
     std::vector<StatementSymbol*> params;
     StatementBlock* body;
 
-    StatementFunction(StatementSymbol* name) : Statement(StatementType::FUNCTION) 
+    StatementFunction(std::string name) : Statement(StatementType::FUNCTION) 
     {
         this->name = name;
     }
 
     ~StatementFunction() override
-    {
-        delete name;
-        
+    {        
         for (auto& stmt : params)
             delete stmt;
         
@@ -193,9 +222,8 @@ struct StatementFunction : Statement
     void print(std::string padding) override
     {
         print_type(padding);
-        if (name != nullptr)
-            std::cout << padding << "Name: " << name->symbol << std::endl;
 
+        std::cout << padding << "Name: " << this->name << std::endl;
         std::cout << padding << "Params: [" << std::endl;
 
         for (auto& stmtSymbol : params)
@@ -232,18 +260,16 @@ struct StatementReturn : Statement
 
 struct StatementFunctionCall : Statement
 {
-    StatementSymbol* name;
+    std::string name;
     std::vector<StatementExpression*> argExpressions;
 
-    StatementFunctionCall(StatementSymbol* name) : Statement(StatementType::FUNCTION_CALL)
+    StatementFunctionCall(std::string name) : Statement(StatementType::FUNCTION_CALL)
     {
         this->name = name;
     }
 
     ~StatementFunctionCall()
     {
-        delete this->name;
-
         for (auto& stmt : argExpressions)
             delete stmt;
     }
@@ -252,8 +278,7 @@ struct StatementFunctionCall : Statement
     {
         print_type(padding);
 
-        if (this->name != nullptr)
-            std::cout << padding << "Name: " << this->name->symbol << std::endl;
+        std::cout << padding << "Name: " << this->name << std::endl;
         std::cout << padding << "Arg Expressions: [" << std::endl;
 
         for (auto& stmt : argExpressions)

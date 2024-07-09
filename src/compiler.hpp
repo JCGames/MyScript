@@ -18,6 +18,7 @@
 #define LOG_ERROR(msg) logger_error(msg, __FILE__, __LINE__)
 #define CODE_ERROR(msg, file, line) logger_code_error(msg, file, line, __FILE__, __LINE__)
 #define CAST(value, type) static_cast<type*>(value)
+#define GLOBAL_NAMESPACE "Global"
 
 using std::vector;
 using std::string;
@@ -341,7 +342,6 @@ void lexer_print_tokens()
 
 #include "statements.hpp"
 
-StatementBlock* parserAstRoot = nullptr;
 unsigned int parserPosition = 0;
 
 /// @brief Moves to the next token in the list of lexerTokens.
@@ -639,7 +639,7 @@ StatementExpression* parser_parse_exp()
 
 #pragma endregion
 
-Statement* parser_parse_statement();
+Statement* parser_parse_a_single_statement();
 
 /// @brief Parses a block with the first token being an open bracket.
 StatementBlock* parser_parse_block()
@@ -655,7 +655,7 @@ StatementBlock* parser_parse_block()
 
     while (parser_get_token()->type != pop::TokenType::END_OF_FILE)
     {
-        auto stmt = parser_parse_statement();
+        auto stmt = parser_parse_a_single_statement();
 
         if (stmt != nullptr)
             block->statements.push_back(stmt);
@@ -683,7 +683,7 @@ StatementFunction* parser_parse_function()
 {
     parser_move_next_token(); // first token is the fn keyword
 
-    auto function = new StatementFunction(new StatementSymbol(parser_get_token()->value));
+    auto function = new StatementFunction(parser_get_token()->value);
 
     parser_move_next_token();
 
@@ -721,7 +721,7 @@ StatementFunction* parser_parse_function()
 
     parser_move_next_token_skip_eols();
 
-    function->name->symbol += std::to_string(numberOfArgs);
+    function->name += std::to_string(numberOfArgs);
     function->body = parser_parse_block();
 
     return function;
@@ -729,7 +729,7 @@ StatementFunction* parser_parse_function()
 
 StatementFunctionCall* parser_parse_function_call()
 {
-    auto functionCall = new StatementFunctionCall(new StatementSymbol(parser_get_token()->value));
+    auto functionCall = new StatementFunctionCall(parser_get_token()->value);
 
     parser_move_next_token();
     parser_move_next_token();
@@ -756,7 +756,7 @@ StatementFunctionCall* parser_parse_function_call()
 
     parser_move_next_token();
 
-    functionCall->name->symbol += std::to_string(numberOfArgs);
+    functionCall->name += std::to_string(numberOfArgs);
 
     return functionCall;
 }
@@ -857,7 +857,7 @@ StatementIf* parser_parse_if()
 }
 
 /// @brief Parses the next statement.
-Statement* parser_parse_statement()
+Statement* parser_parse_a_single_statement()
 {
     Statement* result = nullptr;
 
@@ -899,18 +899,19 @@ Statement* parser_parse_statement()
 }
 
 /// @brief Entry point for parsing a list of lexerTokens.
-void parser_parse_statements()
+StatementBlockNamespace* parser_parse_statements()
 {
-    if (parserAstRoot == nullptr)
-        parserAstRoot = new StatementBlock();
+    parserPosition = 0;
+
+    auto ast = new StatementBlockNamespace(GLOBAL_NAMESPACE);
 
     // read until the end of the file
     while (parser_get_token()->type != pop::TokenType::END_OF_FILE)
     {
-        auto stmt = parser_parse_statement();
+        auto stmt = parser_parse_a_single_statement();
 
         if (stmt != nullptr)
-            parserAstRoot->statements.push_back(stmt);
+            ast->statements.push_back(stmt);
 
         // statements should end with an end of line
         if (parser_get_token()->type != pop::TokenType::END_OF_LINE && parser_get_token()->type != pop::TokenType::END_OF_FILE)
@@ -918,6 +919,8 @@ void parser_parse_statements()
 
         parser_move_next_token();
     }
+
+    return ast;
 }
 
 #pragma endregion

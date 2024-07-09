@@ -3,13 +3,17 @@
 
 #include <vector>
 #include <string>
+
+#ifdef _WIN32
 #include <windows.h>
+#endif
+
 #include <unistd.h>
-#include<stdio.h>
-#include<cstdlib>
-#include<iostream>
-#include<fstream>
-#include<dirent.h>
+#include <stdio.h>
+#include <cstdlib>
+#include <iostream>
+#include <fstream>
+#include <dirent.h>
 
 struct Path
 {
