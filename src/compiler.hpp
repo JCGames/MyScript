@@ -63,12 +63,12 @@ bool string_replace(std::string& str, const std::string& from, const std::string
 
 struct Token
 {
-    pop::TokenType type;
+    _TokenType type;
     string value;
     unsigned int fIndex;
     unsigned int line;
 
-    Token(pop::TokenType type, string value, unsigned int fIndex, unsigned int line)
+    Token(_TokenType type, string value, unsigned int fIndex, unsigned int line)
     {
         this->type = type;
         this->value = value;
@@ -86,6 +86,12 @@ void lexer_delete_tokens()
         if (token != nullptr)
             delete token;
     }
+}
+
+void lexer_print_tokens()
+{
+    for (const auto token : lexerTokens)
+        std::cout << "Type: " << token_type_name(token->type) << " Value: |" << token->value << "| Line: " << token->line + 1 << std::endl;
 }
 
 void lexer_lexify(string fileName)
@@ -123,7 +129,7 @@ void lexer_lexify(string fileName)
         // END_OF_LINE
         if (c == '\n')
         {
-            auto token = new Token(pop::TokenType::END_OF_LINE, EMPTY_STRING, lexerFIndex, line);
+            auto token = new Token(_TokenType::END_OF_LINE, EMPTY_STRING, lexerFIndex, line);
             ++line;
             lexerTokens.push_back(token);
             continue;
@@ -147,46 +153,46 @@ void lexer_lexify(string fileName)
 
             if (symbol == "fn")
             {
-                lexerTokens.push_back(new Token(pop::TokenType::FUNCITON, symbol, lexerFIndex, line));
+                lexerTokens.push_back(new Token(_TokenType::FUNCITON, symbol, lexerFIndex, line));
                 continue;
             }
             else if (symbol == "return")
             {
-                lexerTokens.push_back(new Token(pop::TokenType::RETURN, symbol, lexerFIndex, line));
+                lexerTokens.push_back(new Token(_TokenType::RETURN, symbol, lexerFIndex, line));
                 continue;
             }
             else if (symbol == "struct")
             {
-                lexerTokens.push_back(new Token(pop::TokenType::STRUCT, symbol, lexerFIndex, line));
+                lexerTokens.push_back(new Token(_TokenType::STRUCT, symbol, lexerFIndex, line));
                 continue;
             }
             else if (symbol == "if")
             {
-                lexerTokens.push_back(new Token(pop::TokenType::IF, symbol, lexerFIndex, line));
+                lexerTokens.push_back(new Token(_TokenType::IF, symbol, lexerFIndex, line));
                 continue;
             }
             else if (symbol == "else")
             {
-                lexerTokens.push_back(new Token(pop::TokenType::ELSE, symbol, lexerFIndex, line));
+                lexerTokens.push_back(new Token(_TokenType::ELSE, symbol, lexerFIndex, line));
                 continue;
             }
             else if (symbol == "and")
             {
-                lexerTokens.push_back(new Token(pop::TokenType::AND, symbol, lexerFIndex, line));
+                lexerTokens.push_back(new Token(_TokenType::AND, symbol, lexerFIndex, line));
                 continue;
             }
             else if (symbol == "or")
             {
-                lexerTokens.push_back(new Token(pop::TokenType::OR, symbol, lexerFIndex, line));
+                lexerTokens.push_back(new Token(_TokenType::OR, symbol, lexerFIndex, line));
                 continue;
             }
             else if (symbol == "null")
             {
-                lexerTokens.push_back(new Token(pop::TokenType::_NULL, symbol, lexerFIndex, line));
+                lexerTokens.push_back(new Token(_TokenType::_NULL, symbol, lexerFIndex, line));
                 continue;
             }
 
-            lexerTokens.push_back(new Token(pop::TokenType::SYMBOL, symbol, lexerFIndex, line));
+            lexerTokens.push_back(new Token(_TokenType::SYMBOL, symbol, lexerFIndex, line));
             continue;
         }
         // STRING
@@ -205,7 +211,7 @@ void lexer_lexify(string fileName)
 
             string_replace(str, "\\n", "\n");
 
-            lexerTokens.push_back(new Token(pop::TokenType::STRING, str, lexerFIndex, line));
+            lexerTokens.push_back(new Token(_TokenType::STRING, str, lexerFIndex, line));
             continue;
         }
         // NUMBER
@@ -236,100 +242,92 @@ void lexer_lexify(string fileName)
                 number += c;
             }
 
-            lexerTokens.push_back(new Token(pop::TokenType::NUMBER, number, lexerFIndex, line));
+            lexerTokens.push_back(new Token(_TokenType::NUMBER, number, lexerFIndex, line));
             continue;
         }
         // DOUBLE OPERATORS
         else if (c == '-' && ifs.peek() == '>')
         {
             char next = ifs.get();
-            lexerTokens.push_back(new Token(pop::TokenType::ASSIGN, string(1, c) + string(1, next), lexerFIndex, line));
+            lexerTokens.push_back(new Token(_TokenType::ASSIGN, string(1, c) + string(1, next), lexerFIndex, line));
         }
         else if (c == '!' && ifs.peek() == '=')
         {
             char next = ifs.get();
-            lexerTokens.push_back(new Token(pop::TokenType::NOT_EQUALS, string(1, c) + string(1, next), lexerFIndex, line));
+            lexerTokens.push_back(new Token(_TokenType::NOT_EQUALS, string(1, c) + string(1, next), lexerFIndex, line));
         }
         else if (c == '>' && ifs.peek() == '=')
         {
             char next = ifs.get();
-            lexerTokens.push_back(new Token(pop::TokenType::GREATER_THAN_E, string(1, c) + string(1, next), lexerFIndex, line));
+            lexerTokens.push_back(new Token(_TokenType::GREATER_THAN_E, string(1, c) + string(1, next), lexerFIndex, line));
         }
         else if (c == '<' && ifs.peek() == '=')
         {
             char next = ifs.get();
-            lexerTokens.push_back(new Token(pop::TokenType::LESS_THAN_E, string(1, c) + string(1, next), lexerFIndex, line));
+            lexerTokens.push_back(new Token(_TokenType::LESS_THAN_E, string(1, c) + string(1, next), lexerFIndex, line));
         }
         // SINGLE CHARACTER OPERATORS
         else if (c == '=')
         {
-            lexerTokens.push_back(new Token(pop::TokenType::EQUALS, string(1, c), lexerFIndex, line));
+            lexerTokens.push_back(new Token(_TokenType::EQUALS, string(1, c), lexerFIndex, line));
         }
         else if (c == '>')
         {
-            lexerTokens.push_back(new Token(pop::TokenType::GREATER_THAN, string(1, c), lexerFIndex, line));
+            lexerTokens.push_back(new Token(_TokenType::GREATER_THAN, string(1, c), lexerFIndex, line));
         }
         else if (c == '<')
         {
-            lexerTokens.push_back(new Token(pop::TokenType::LESS_THAN, string(1, c), lexerFIndex, line));
+            lexerTokens.push_back(new Token(_TokenType::LESS_THAN, string(1, c), lexerFIndex, line));
         }
         else if (c == '+')
         {
-            lexerTokens.push_back(new Token(pop::TokenType::PLUS, string(1, c), lexerFIndex, line));
+            lexerTokens.push_back(new Token(_TokenType::PLUS, string(1, c), lexerFIndex, line));
         }
         else if (c == '-')
         {
-            lexerTokens.push_back(new Token(pop::TokenType::MINUS, string(1, c), lexerFIndex, line));
+            lexerTokens.push_back(new Token(_TokenType::MINUS, string(1, c), lexerFIndex, line));
         }
         else if (c == '*')
         {
-            lexerTokens.push_back(new Token(pop::TokenType::MULTIPLY, string(1, c), lexerFIndex, line));
+            lexerTokens.push_back(new Token(_TokenType::MULTIPLY, string(1, c), lexerFIndex, line));
         }
         else if (c == '/')
         {
-            lexerTokens.push_back(new Token(pop::TokenType::DIVIDE, string(1, c), lexerFIndex, line));
+            lexerTokens.push_back(new Token(_TokenType::DIVIDE, string(1, c), lexerFIndex, line));
         }
         else if (c == '%')
         {
-            lexerTokens.push_back(new Token(pop::TokenType::MODULUS, string(1, c), lexerFIndex, line));
+            lexerTokens.push_back(new Token(_TokenType::MODULUS, string(1, c), lexerFIndex, line));
         }
         else if (c == '(')
         {
-            lexerTokens.push_back(new Token(pop::TokenType::OPEN_PARAN, string(1, c), lexerFIndex, line));
+            lexerTokens.push_back(new Token(_TokenType::OPEN_PARAN, string(1, c), lexerFIndex, line));
         }
         else if (c == ')')
         {
-            lexerTokens.push_back(new Token(pop::TokenType::CLOSE_PARAN, string(1, c), lexerFIndex, line));
+            lexerTokens.push_back(new Token(_TokenType::CLOSE_PARAN, string(1, c), lexerFIndex, line));
         }
         else if (c == '{')
         {
-            lexerTokens.push_back(new Token(pop::TokenType::OPEN_BRACKET, string(1, c), lexerFIndex, line));
+            lexerTokens.push_back(new Token(_TokenType::OPEN_BRACKET, string(1, c), lexerFIndex, line));
         }
         else if (c == '}')
         {
-            lexerTokens.push_back(new Token(pop::TokenType::CLOSE_BRACKET, string(1, c), lexerFIndex, line));
+            lexerTokens.push_back(new Token(_TokenType::CLOSE_BRACKET, string(1, c), lexerFIndex, line));
         }
         else if (c == ',')
         {
-            lexerTokens.push_back(new Token(pop::TokenType::COMMA, string(1, c), lexerFIndex, line));
+            lexerTokens.push_back(new Token(_TokenType::COMMA, string(1, c), lexerFIndex, line));
         }
         else if (c == '.')
         {
-            lexerTokens.push_back(new Token(pop::TokenType::DOT, string(1, c), lexerFIndex, line));
+            lexerTokens.push_back(new Token(_TokenType::DOT, string(1, c), lexerFIndex, line));
         }
     }
 
-    lexerTokens.push_back(new Token(pop::TokenType::END_OF_FILE, EMPTY_STRING, lexerFIndex, line));
+    lexerTokens.push_back(new Token(_TokenType::END_OF_FILE, EMPTY_STRING, lexerFIndex, line));
 
     ifs.close();
-}
-
-void lexer_print_tokens()
-{
-    for (const auto token : lexerTokens)
-    {
-        std::cout << "Type: " << token_type_name(token->type) << " Value: |" << token->value << "| Line: " << token->line + 1 << std::endl;
-    }
 }
 
 #pragma endregion
@@ -370,7 +368,7 @@ void parser_move_next_token_skip_eols()
 {
     parser_move_next_token();
 
-    while (parser_get_token()->type == pop::TokenType::END_OF_LINE)
+    while (parser_get_token()->type == _TokenType::END_OF_LINE)
         parser_move_next_token();
 }
 
@@ -384,12 +382,12 @@ Statement* parser_parse_exp_term()
     Statement* result = nullptr;
 
     // FUNCTION CALL
-    if (parser_get_token()->type == pop::TokenType::SYMBOL && parser_peek_token()->type == pop::TokenType::OPEN_PARAN)
+    if (parser_get_token()->type == _TokenType::SYMBOL && parser_peek_token()->type == _TokenType::OPEN_PARAN)
     {
         result = parser_parse_function_call();
         return result;
     }
-    if (parser_get_token()->type == pop::TokenType::NUMBER)
+    if (parser_get_token()->type == _TokenType::NUMBER)
     {
         bool isDecimal = false;
         for (char c : parser_get_token()->value)
@@ -403,22 +401,22 @@ Statement* parser_parse_exp_term()
             new StatementValue(DataType::FLOAT, parser_get_token()->value) :
             new StatementValue(DataType::INT, parser_get_token()->value);
     }
-    else if (parser_get_token()->type == pop::TokenType::STRING)
+    else if (parser_get_token()->type == _TokenType::STRING)
     {
         result = new StatementValue(DataType::STRING, parser_get_token()->value);
     }
-    else if (parser_get_token()->type == pop::TokenType::SYMBOL)
+    else if (parser_get_token()->type == _TokenType::SYMBOL)
     {
         result = new StatementSymbol(parser_get_token()->value);
     }
     // NEGATE
-    else if (parser_get_token()->type == pop::TokenType::MINUS)
+    else if (parser_get_token()->type == _TokenType::MINUS)
     {
         parser_move_next_token();
         return new StatementUnaryOperator(OperatorType::NEGATE, parser_parse_exp_term());
     }
     // INNER EXPRESSIONS
-    else if (parser_get_token()->type == pop::TokenType::OPEN_PARAN)
+    else if (parser_get_token()->type == _TokenType::OPEN_PARAN)
     {
         unsigned int startingLine = parser_get_token()->line;
 
@@ -426,10 +424,10 @@ Statement* parser_parse_exp_term()
 
         result = parser_parse_exp();
 
-        if (parser_get_token()->type != pop::TokenType::CLOSE_PARAN)
+        if (parser_get_token()->type != _TokenType::CLOSE_PARAN)
             CODE_ERROR("Expected a close paranthesis.", lexeFiles[lexerFIndex], startingLine + 1);
     }
-    else if (parser_get_token()->type == pop::TokenType::_NULL)
+    else if (parser_get_token()->type == _TokenType::_NULL)
     {
         result = new StatementValue(DataType::_NULL, EMPTY_STRING);
     }
@@ -443,7 +441,7 @@ Statement* parser_parse_exp_dot()
     stack<Statement*> stmtStack;
     stmtStack.push(parser_parse_exp_term());
 
-    while (parser_get_token()->type == pop::TokenType::DOT)
+    while (parser_get_token()->type == _TokenType::DOT)
     {
         parser_move_next_token();
         stmtStack.push(parser_parse_exp_term());
@@ -480,21 +478,21 @@ Statement* parser_parse_exp_muldivmod()
 {
     Statement* left = parser_parse_exp_dot();
 
-    while (parser_get_token()->type == pop::TokenType::MULTIPLY ||
-        parser_get_token()->type == pop::TokenType::DIVIDE ||
-        parser_get_token()->type == pop::TokenType::MODULUS)
+    while (parser_get_token()->type == _TokenType::MULTIPLY ||
+        parser_get_token()->type == _TokenType::DIVIDE ||
+        parser_get_token()->type == _TokenType::MODULUS)
     {
-        if (parser_get_token()->type == pop::TokenType::MULTIPLY)
+        if (parser_get_token()->type == _TokenType::MULTIPLY)
         {
             parser_move_next_token();
             left = new StatementBinaryOperator(OperatorType::MULTIPLICATION, left, parser_parse_exp_dot());
         }
-        else if (parser_get_token()->type == pop::TokenType::DIVIDE)
+        else if (parser_get_token()->type == _TokenType::DIVIDE)
         {
             parser_move_next_token();
             left = new StatementBinaryOperator(OperatorType::DIVISION, left, parser_parse_exp_dot());
         }
-        else if (parser_get_token()->type == pop::TokenType::MODULUS)
+        else if (parser_get_token()->type == _TokenType::MODULUS)
         {
             parser_move_next_token();
             left = new StatementBinaryOperator(OperatorType::MODULUS, left, parser_parse_exp_dot());
@@ -508,15 +506,15 @@ Statement* parser_parse_exp_addsub()
 {
     Statement* left = parser_parse_exp_muldivmod();
 
-    while (parser_get_token()->type == pop::TokenType::PLUS ||
-        parser_get_token()->type == pop::TokenType::MINUS)
+    while (parser_get_token()->type == _TokenType::PLUS ||
+        parser_get_token()->type == _TokenType::MINUS)
     {
-        if (parser_get_token()->type == pop::TokenType::PLUS)
+        if (parser_get_token()->type == _TokenType::PLUS)
         {
             parser_move_next_token();
             left = new StatementBinaryOperator(OperatorType::ADDITION, left, parser_parse_exp_muldivmod());
         }
-        else if (parser_get_token()->type == pop::TokenType::MINUS)
+        else if (parser_get_token()->type == _TokenType::MINUS)
         {
             parser_move_next_token();
             left = new StatementBinaryOperator(OperatorType::SUBTRACTION, left, parser_parse_exp_muldivmod());
@@ -530,39 +528,39 @@ Statement* parser_parse_equality()
 {
     Statement* left = parser_parse_exp_addsub();
 
-    while (parser_get_token()->type == pop::TokenType::EQUALS ||
-        parser_get_token()->type == pop::TokenType::NOT_EQUALS ||
-        parser_get_token()->type == pop::TokenType::GREATER_THAN ||
-        parser_get_token()->type == pop::TokenType::LESS_THAN ||
-        parser_get_token()->type == pop::TokenType::GREATER_THAN_E ||
-        parser_get_token()->type == pop::TokenType::LESS_THAN_E)
+    while (parser_get_token()->type == _TokenType::EQUALS ||
+        parser_get_token()->type == _TokenType::NOT_EQUALS ||
+        parser_get_token()->type == _TokenType::GREATER_THAN ||
+        parser_get_token()->type == _TokenType::LESS_THAN ||
+        parser_get_token()->type == _TokenType::GREATER_THAN_E ||
+        parser_get_token()->type == _TokenType::LESS_THAN_E)
     {
-        if (parser_get_token()->type == pop::TokenType::EQUALS)
+        if (parser_get_token()->type == _TokenType::EQUALS)
         {
             parser_move_next_token();
             left = new StatementBinaryOperator(OperatorType::EQUALS, left, parser_parse_exp_addsub());
         }
-        else if (parser_get_token()->type == pop::TokenType::NOT_EQUALS)
+        else if (parser_get_token()->type == _TokenType::NOT_EQUALS)
         {
             parser_move_next_token();
             left = new StatementBinaryOperator(OperatorType::NOT_EQUALS, left, parser_parse_exp_addsub());
         }
-        else if (parser_get_token()->type == pop::TokenType::GREATER_THAN)
+        else if (parser_get_token()->type == _TokenType::GREATER_THAN)
         {
             parser_move_next_token();
             left = new StatementBinaryOperator(OperatorType::GREATER_THAN, left, parser_parse_exp_addsub());
         }
-        else if (parser_get_token()->type == pop::TokenType::LESS_THAN)
+        else if (parser_get_token()->type == _TokenType::LESS_THAN)
         {
             parser_move_next_token();
             left = new StatementBinaryOperator(OperatorType::LESS_THAN, left, parser_parse_exp_addsub());
         }
-        else if (parser_get_token()->type == pop::TokenType::GREATER_THAN_E)
+        else if (parser_get_token()->type == _TokenType::GREATER_THAN_E)
         {
             parser_move_next_token();
             left = new StatementBinaryOperator(OperatorType::GREATER_THAN_E, left, parser_parse_exp_addsub());
         }
-        else if (parser_get_token()->type == pop::TokenType::LESS_THAN_E)
+        else if (parser_get_token()->type == _TokenType::LESS_THAN_E)
         {
             parser_move_next_token();
             left = new StatementBinaryOperator(OperatorType::LESS_THAN_E, left, parser_parse_exp_addsub());
@@ -576,15 +574,15 @@ Statement* parser_parse_andor()
 {
     Statement* left = parser_parse_equality();
 
-    while (parser_get_token()->type == pop::TokenType::AND ||
-        parser_get_token()->type == pop::TokenType::OR)
+    while (parser_get_token()->type == _TokenType::AND ||
+        parser_get_token()->type == _TokenType::OR)
     {
-        if (parser_get_token()->type == pop::TokenType::AND)
+        if (parser_get_token()->type == _TokenType::AND)
         {
             parser_move_next_token();
             left = new StatementBinaryOperator(OperatorType::AND, left, parser_parse_equality());
         }
-        else if (parser_get_token()->type == pop::TokenType::OR)
+        else if (parser_get_token()->type == _TokenType::OR)
         {
             parser_move_next_token();
             left = new StatementBinaryOperator(OperatorType::OR, left, parser_parse_equality());
@@ -599,7 +597,7 @@ Statement* parser_parse_exp_assign()
     stack<Statement*> stmtStack;
     stmtStack.push(parser_parse_andor());
 
-    while (parser_get_token()->type == pop::TokenType::ASSIGN)
+    while (parser_get_token()->type == _TokenType::ASSIGN)
     {
         parser_move_next_token();
         stmtStack.push(parser_parse_andor());
@@ -646,14 +644,14 @@ StatementBlock* parser_parse_block()
 {
     StatementBlock* block = new StatementBlock();
 
-    if (parser_get_token()->type != pop::TokenType::OPEN_BRACKET)
+    if (parser_get_token()->type != _TokenType::OPEN_BRACKET)
         CODE_ERROR("Missing an open bracket.", lexeFiles[parser_get_token()->fIndex], parser_get_token()->line + 1);
 
     unsigned int startingLine = parser_get_token()->line;
 
     parser_move_next_token();
 
-    while (parser_get_token()->type != pop::TokenType::END_OF_FILE)
+    while (parser_get_token()->type != _TokenType::END_OF_FILE)
     {
         auto stmt = parser_parse_a_single_statement();
 
@@ -661,17 +659,17 @@ StatementBlock* parser_parse_block()
             block->statements.push_back(stmt);
 
         // if we encounter a close bracket then we are at the end of the block
-        if (parser_get_token()->type == pop::TokenType::CLOSE_BRACKET)
+        if (parser_get_token()->type == _TokenType::CLOSE_BRACKET)
             break;
 
         // statements should end with an end of line
-        if (parser_get_token()->type != pop::TokenType::END_OF_LINE && parser_get_token()->type != pop::TokenType::END_OF_FILE)
+        if (parser_get_token()->type != _TokenType::END_OF_LINE && parser_get_token()->type != _TokenType::END_OF_FILE)
             CODE_ERROR("Expected the end of a statment but got [" + parser_get_token()->value + "].", lexeFiles[parser_get_token()->fIndex], parser_get_token()->line + 1);
 
         parser_move_next_token();
     }
 
-    if (parser_get_token()->type != pop::TokenType::CLOSE_BRACKET)
+    if (parser_get_token()->type != _TokenType::CLOSE_BRACKET)
         CODE_ERROR("Expected a close bracket.", lexeFiles[parser_get_token()->fIndex], startingLine + 1);
 
     parser_move_next_token();
@@ -687,20 +685,20 @@ StatementFunction* parser_parse_function()
 
     parser_move_next_token();
 
-    if (parser_get_token()->type != pop::TokenType::OPEN_PARAN)
+    if (parser_get_token()->type != _TokenType::OPEN_PARAN)
         CODE_ERROR("Missing an open paranthesis.", lexeFiles[parser_get_token()->fIndex], parser_get_token()->line + 1);
 
     unsigned int startingLine = parser_get_token()->line;
     int numberOfArgs = 0;
 
-    while (parser_get_token()->type != pop::TokenType::END_OF_FILE)
+    while (parser_get_token()->type != _TokenType::END_OF_FILE)
     {
         parser_move_next_token();
 
-        if (parser_get_token()->type == pop::TokenType::CLOSE_PARAN)
+        if (parser_get_token()->type == _TokenType::CLOSE_PARAN)
             break;
 
-        if (parser_get_token()->type == pop::TokenType::SYMBOL) 
+        if (parser_get_token()->type == _TokenType::SYMBOL) 
         {
             function->params.push_back(new StatementSymbol(parser_get_token()->value));
             ++numberOfArgs;
@@ -712,11 +710,11 @@ StatementFunction* parser_parse_function()
         
         parser_move_next_token();
 
-        if (parser_get_token()->type != pop::TokenType::COMMA)
+        if (parser_get_token()->type != _TokenType::COMMA)
             break;
     }
 
-    if (parser_get_token()->type != pop::TokenType::CLOSE_PARAN)
+    if (parser_get_token()->type != _TokenType::CLOSE_PARAN)
         CODE_ERROR("Missing a close paranthesis.", lexeFiles[parser_get_token()->fIndex], startingLine + 1);
 
     parser_move_next_token_skip_eols();
@@ -737,21 +735,21 @@ StatementFunctionCall* parser_parse_function_call()
     unsigned int startingLine = parser_get_token()->line;
     int numberOfArgs = 0;
 
-    while (parser_get_token()->type != pop::TokenType::CLOSE_PARAN && parser_get_token()->type != pop::TokenType::END_OF_FILE)
+    while (parser_get_token()->type != _TokenType::CLOSE_PARAN && parser_get_token()->type != _TokenType::END_OF_FILE)
     {
         functionCall->argExpressions.push_back(parser_parse_exp());
         ++numberOfArgs;
 
-        if (parser_get_token()->type == pop::TokenType::CLOSE_PARAN)
+        if (parser_get_token()->type == _TokenType::CLOSE_PARAN)
             break;
 
-        if (parser_get_token()->type != pop::TokenType::COMMA)
+        if (parser_get_token()->type != _TokenType::COMMA)
             CODE_ERROR("Missing a comma to seperate expressions got [" + parser_get_token()->value + "].", lexeFiles[parser_get_token()->fIndex], parser_get_token()->line);
         
         parser_move_next_token();
     }
 
-    if (parser_get_token()->type != pop::TokenType::CLOSE_PARAN)
+    if (parser_get_token()->type != _TokenType::CLOSE_PARAN)
         CODE_ERROR("Expected a close parenthesis.", lexeFiles[parser_get_token()->fIndex], startingLine + 1);
 
     parser_move_next_token();
@@ -765,14 +763,14 @@ StatementStruct* parser_parse_struct()
 {
     parser_move_next_token();
 
-    if (parser_get_token()->type != pop::TokenType::SYMBOL)
+    if (parser_get_token()->type != _TokenType::SYMBOL)
         CODE_ERROR("Missing a name of struct.", lexeFiles[parser_get_token()->fIndex], parser_get_token()->line);
 
     auto _struct = new StatementStruct(new StatementSymbol(parser_get_token()->value));
 
     parser_move_next_token_skip_eols();
 
-    if (parser_get_token()->type != pop::TokenType::OPEN_BRACKET)
+    if (parser_get_token()->type != _TokenType::OPEN_BRACKET)
         CODE_ERROR("Missing an open bracket.", lexeFiles[parser_get_token()->fIndex], parser_get_token()->line);
 
     parser_move_next_token_skip_eols();
@@ -780,15 +778,15 @@ StatementStruct* parser_parse_struct()
     unsigned int startingLine = parser_get_token()->line;
 
     // parse variables and functions in structure
-    while (parser_get_token()->type != pop::TokenType::CLOSE_BRACKET && parser_get_token()->type != pop::TokenType::END_OF_FILE)
+    while (parser_get_token()->type != _TokenType::CLOSE_BRACKET && parser_get_token()->type != _TokenType::END_OF_FILE)
     {
         // VARIABLE
-        if (parser_get_token()->type == pop::TokenType::SYMBOL && parser_peek_token()->type == pop::TokenType::ASSIGN)
+        if (parser_get_token()->type == _TokenType::SYMBOL && parser_peek_token()->type == _TokenType::ASSIGN)
         {
             _struct->variables.push_back(parser_parse_exp());
         }
         // FUNCTION
-        else if (parser_get_token()->type == pop::TokenType::FUNCITON)
+        else if (parser_get_token()->type == _TokenType::FUNCITON)
         {
             _struct->functions.push_back(parser_parse_function());
         }
@@ -797,17 +795,17 @@ StatementStruct* parser_parse_struct()
             CODE_ERROR("Invalid statement in struct but got [" + parser_get_token()->value + "].", lexeFiles[parser_get_token()->fIndex], parser_get_token()->line);
         }
 
-        if (parser_get_token()->type == pop::TokenType::CLOSE_BRACKET)
+        if (parser_get_token()->type == _TokenType::CLOSE_BRACKET)
             break;
 
         // make sure that we've reached the end of the statement
-        if (parser_get_token()->type != pop::TokenType::END_OF_LINE && parser_get_token()->type != pop::TokenType::END_OF_FILE)
+        if (parser_get_token()->type != _TokenType::END_OF_LINE && parser_get_token()->type != _TokenType::END_OF_FILE)
             CODE_ERROR("Expected the end of a statment but got [" + parser_get_token()->value + "].", lexeFiles[parser_get_token()->fIndex], parser_get_token()->line + 1);
 
         parser_move_next_token_skip_eols();
     }
 
-    if (parser_get_token()->type != pop::TokenType::CLOSE_BRACKET)
+    if (parser_get_token()->type != _TokenType::CLOSE_BRACKET)
         CODE_ERROR("Missing closing bracket on line.", lexeFiles[parser_get_token()->fIndex], startingLine + 1);
 
     parser_move_next_token();
@@ -827,24 +825,24 @@ StatementIf* parser_parse_if()
 
     auto exp = parser_parse_exp();
 
-    if (parser_get_token()->type == pop::TokenType::END_OF_LINE)
+    if (parser_get_token()->type == _TokenType::END_OF_LINE)
         parser_move_next_token_skip_eols();
 
     auto block = parser_parse_block();
 
     unsigned int pos = parserPosition;
 
-    if (parser_get_token()->type == pop::TokenType::END_OF_LINE)
+    if (parser_get_token()->type == _TokenType::END_OF_LINE)
         parser_move_next_token_skip_eols();
 
     auto _if = new StatementIf(exp, block, nullptr, nullptr);
 
-    if (parser_get_token()->type == pop::TokenType::ELSE && parser_peek_token()->type == pop::TokenType::IF)
+    if (parser_get_token()->type == _TokenType::ELSE && parser_peek_token()->type == _TokenType::IF)
     {
         parser_move_next_token();
         _if->_elseIf = parser_parse_if();
     }
-    else if (parser_get_token()->type == pop::TokenType::ELSE)
+    else if (parser_get_token()->type == _TokenType::ELSE)
     {
         _if->_else = parser_parse_else();
     }
@@ -861,35 +859,35 @@ Statement* parser_parse_a_single_statement()
 {
     Statement* result = nullptr;
 
-    if (parser_get_token()->type == pop::TokenType::IF)
+    if (parser_get_token()->type == _TokenType::IF)
     {
         result = parser_parse_if();
     }
     // FUNCTION CALL
-    else if (parser_get_token()->type == pop::TokenType::SYMBOL && parser_peek_token()->type == pop::TokenType::OPEN_PARAN)
+    else if (parser_get_token()->type == _TokenType::SYMBOL && parser_peek_token()->type == _TokenType::OPEN_PARAN)
     {
         result = parser_parse_function_call();
     }
     // EXPRESSIONS
-    else if (parser_get_token()->type == pop::TokenType::NUMBER ||
-        parser_get_token()->type == pop::TokenType::STRING ||
-        parser_get_token()->type == pop::TokenType::SYMBOL ||
-        parser_get_token()->type == pop::TokenType::MINUS ||
-        parser_get_token()->type == pop::TokenType::OPEN_PARAN)
+    else if (parser_get_token()->type == _TokenType::NUMBER ||
+        parser_get_token()->type == _TokenType::STRING ||
+        parser_get_token()->type == _TokenType::SYMBOL ||
+        parser_get_token()->type == _TokenType::MINUS ||
+        parser_get_token()->type == _TokenType::OPEN_PARAN)
     {
         result = parser_parse_exp();
     }
     // FUNCTIONS
-    else if (parser_get_token()->type == pop::TokenType::FUNCITON)
+    else if (parser_get_token()->type == _TokenType::FUNCITON)
     {
         result = parser_parse_function();
     }
-    else if (parser_get_token()->type == pop::TokenType::STRUCT)
+    else if (parser_get_token()->type == _TokenType::STRUCT)
     {
         result = parser_parse_struct();
     }
     // RETURNS
-    else if (parser_get_token()->type == pop::TokenType::RETURN)
+    else if (parser_get_token()->type == _TokenType::RETURN)
     {
         parser_move_next_token();
         result = new StatementReturn(parser_parse_exp());
@@ -906,7 +904,7 @@ StatementBlockNamespace* parser_parse_statements()
     auto ast = new StatementBlockNamespace(GLOBAL_NAMESPACE);
 
     // read until the end of the file
-    while (parser_get_token()->type != pop::TokenType::END_OF_FILE)
+    while (parser_get_token()->type != _TokenType::END_OF_FILE)
     {
         auto stmt = parser_parse_a_single_statement();
 
@@ -914,7 +912,7 @@ StatementBlockNamespace* parser_parse_statements()
             ast->statements.push_back(stmt);
 
         // statements should end with an end of line
-        if (parser_get_token()->type != pop::TokenType::END_OF_LINE && parser_get_token()->type != pop::TokenType::END_OF_FILE)
+        if (parser_get_token()->type != _TokenType::END_OF_LINE && parser_get_token()->type != _TokenType::END_OF_FILE)
             CODE_ERROR("Expected the end of a statment but got [" + parser_get_token()->value + "].", lexeFiles[parser_get_token()->fIndex], parser_get_token()->line + 1);
 
         parser_move_next_token();

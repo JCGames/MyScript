@@ -2,7 +2,7 @@
 #include <iostream>
 
 #include "path.hpp"
-#include "runtime.hpp"
+#include "compiler.hpp"
 
 int main(int argc, char** argv)
 {
@@ -29,8 +29,6 @@ int main(int argc, char** argv)
 
         lexer_print_tokens();
         ast->print(EMPTY_STRING);
-
-        rt_run(ast);
 
         // do deletes
         lexer_delete_tokens();
