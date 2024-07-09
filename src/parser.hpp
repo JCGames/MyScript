@@ -1,14 +1,7 @@
 #ifndef COMPILER
 #define COMPILER
 
-#include <iostream>
-#include <vector>
-#include <string>
-#include <fstream>
 #include <stack>
-#include <cstring>
-#include <map>
-#include <sstream>
 
 #include "enums/token-type.hpp"
 #include "enums/statement-type.hpp"
@@ -21,27 +14,28 @@
 #define GLOBAL_NAMESPACE "Global"
 
 unsigned int parserPosition = 0;
+std::vector<Token*> parserTokens;
 
-/// @brief Moves to the next token in the list of lexerTokens.
+/// @brief Moves to the next token in the list of parserTokens.
 void parser_move_next_token()
 {
-    if (parserPosition + 1 < lexerTokens.size())
+    if (parserPosition + 1 < parserTokens.size())
         ++parserPosition;
 }
 
 /// @brief Gets the token at the current parserPosition.
 const Token* parser_get_token()
 {
-    return lexerTokens[parserPosition];
+    return parserTokens[parserPosition];
 }
 
 /// @brief Peeks at the next token one parserPosition further than the current parserPosition. 
 const Token* parser_peek_token()
 {
-    if (parserPosition + 1 < lexerTokens.size())
-        return lexerTokens[parserPosition + 1];
+    if (parserPosition + 1 < parserTokens.size())
+        return parserTokens[parserPosition + 1];
     
-    return lexerTokens[lexerTokens.size() - 1];
+    return parserTokens[parserTokens.size() - 1];
 }
 
 void parser_move_next_token_skip_eols()
@@ -105,7 +99,7 @@ Statement* parser_parse_exp_term()
         result = parser_parse_exp();
 
         if (parser_get_token()->type != _TokenType::CLOSE_PARAN)
-            CODE_ERROR("Expected a close paranthesis.", lexeFiles[lexerFIndex], startingLine + 1);
+            CODE_ERROR("Expected a close paranthesis.", lexerFiles[lexerFIndex], startingLine + 1);
     }
     else if (parser_get_token()->type == _TokenType::_NULL)
     {
@@ -325,7 +319,7 @@ StatementBlock* parser_parse_block()
     StatementBlock* block = new StatementBlock();
 
     if (parser_get_token()->type != _TokenType::OPEN_BRACKET)
-        CODE_ERROR("Missing an open bracket.", lexeFiles[parser_get_token()->fIndex], parser_get_token()->line + 1);
+        CODE_ERROR("Missing an open bracket.", lexerFiles[parser_get_token()->fIndex], parser_get_token()->line + 1);
 
     unsigned int startingLine = parser_get_token()->line;
 
@@ -344,13 +338,13 @@ StatementBlock* parser_parse_block()
 
         // statements should end with an end of line
         if (parser_get_token()->type != _TokenType::END_OF_LINE && parser_get_token()->type != _TokenType::END_OF_FILE)
-            CODE_ERROR("Expected the end of a statment but got [" + parser_get_token()->value + "].", lexeFiles[parser_get_token()->fIndex], parser_get_token()->line + 1);
+            CODE_ERROR("Expected the end of a statment but got [" + parser_get_token()->value + "].", lexerFiles[parser_get_token()->fIndex], parser_get_token()->line + 1);
 
         parser_move_next_token();
     }
 
     if (parser_get_token()->type != _TokenType::CLOSE_BRACKET)
-        CODE_ERROR("Expected a close bracket.", lexeFiles[parser_get_token()->fIndex], startingLine + 1);
+        CODE_ERROR("Expected a close bracket.", lexerFiles[parser_get_token()->fIndex], startingLine + 1);
 
     parser_move_next_token();
 
@@ -366,7 +360,7 @@ StatementFunction* parser_parse_function()
     parser_move_next_token();
 
     if (parser_get_token()->type != _TokenType::OPEN_PARAN)
-        CODE_ERROR("Missing an open paranthesis.", lexeFiles[parser_get_token()->fIndex], parser_get_token()->line + 1);
+        CODE_ERROR("Missing an open paranthesis.", lexerFiles[parser_get_token()->fIndex], parser_get_token()->line + 1);
 
     unsigned int startingLine = parser_get_token()->line;
     int numberOfArgs = 0;
@@ -385,7 +379,7 @@ StatementFunction* parser_parse_function()
         }
         else
         {
-            CODE_ERROR("Expected a symbol but got " + parser_get_token()->value + ".", lexeFiles[parser_get_token()->fIndex], parser_get_token()->line + 1);
+            CODE_ERROR("Expected a symbol but got " + parser_get_token()->value + ".", lexerFiles[parser_get_token()->fIndex], parser_get_token()->line + 1);
         }
         
         parser_move_next_token();
@@ -395,7 +389,7 @@ StatementFunction* parser_parse_function()
     }
 
     if (parser_get_token()->type != _TokenType::CLOSE_PARAN)
-        CODE_ERROR("Missing a close paranthesis.", lexeFiles[parser_get_token()->fIndex], startingLine + 1);
+        CODE_ERROR("Missing a close paranthesis.", lexerFiles[parser_get_token()->fIndex], startingLine + 1);
 
     parser_move_next_token_skip_eols();
 
@@ -424,13 +418,13 @@ StatementFunctionCall* parser_parse_function_call()
             break;
 
         if (parser_get_token()->type != _TokenType::COMMA)
-            CODE_ERROR("Missing a comma to seperate expressions got [" + parser_get_token()->value + "].", lexeFiles[parser_get_token()->fIndex], parser_get_token()->line);
+            CODE_ERROR("Missing a comma to seperate expressions got [" + parser_get_token()->value + "].", lexerFiles[parser_get_token()->fIndex], parser_get_token()->line);
         
         parser_move_next_token();
     }
 
     if (parser_get_token()->type != _TokenType::CLOSE_PARAN)
-        CODE_ERROR("Expected a close parenthesis.", lexeFiles[parser_get_token()->fIndex], startingLine + 1);
+        CODE_ERROR("Expected a close parenthesis.", lexerFiles[parser_get_token()->fIndex], startingLine + 1);
 
     parser_move_next_token();
 
@@ -444,14 +438,14 @@ StatementStruct* parser_parse_struct()
     parser_move_next_token();
 
     if (parser_get_token()->type != _TokenType::SYMBOL)
-        CODE_ERROR("Missing a name of struct.", lexeFiles[parser_get_token()->fIndex], parser_get_token()->line);
+        CODE_ERROR("Missing a name of struct.", lexerFiles[parser_get_token()->fIndex], parser_get_token()->line);
 
     auto _struct = new StatementStruct(new StatementSymbol(parser_get_token()->value));
 
     parser_move_next_token_skip_eols();
 
     if (parser_get_token()->type != _TokenType::OPEN_BRACKET)
-        CODE_ERROR("Missing an open bracket.", lexeFiles[parser_get_token()->fIndex], parser_get_token()->line);
+        CODE_ERROR("Missing an open bracket.", lexerFiles[parser_get_token()->fIndex], parser_get_token()->line);
 
     parser_move_next_token_skip_eols();
 
@@ -472,7 +466,7 @@ StatementStruct* parser_parse_struct()
         }
         else 
         {
-            CODE_ERROR("Invalid statement in struct but got [" + parser_get_token()->value + "].", lexeFiles[parser_get_token()->fIndex], parser_get_token()->line);
+            CODE_ERROR("Invalid statement in struct but got [" + parser_get_token()->value + "].", lexerFiles[parser_get_token()->fIndex], parser_get_token()->line);
         }
 
         if (parser_get_token()->type == _TokenType::CLOSE_BRACKET)
@@ -480,13 +474,13 @@ StatementStruct* parser_parse_struct()
 
         // make sure that we've reached the end of the statement
         if (parser_get_token()->type != _TokenType::END_OF_LINE && parser_get_token()->type != _TokenType::END_OF_FILE)
-            CODE_ERROR("Expected the end of a statment but got [" + parser_get_token()->value + "].", lexeFiles[parser_get_token()->fIndex], parser_get_token()->line + 1);
+            CODE_ERROR("Expected the end of a statment but got [" + parser_get_token()->value + "].", lexerFiles[parser_get_token()->fIndex], parser_get_token()->line + 1);
 
         parser_move_next_token_skip_eols();
     }
 
     if (parser_get_token()->type != _TokenType::CLOSE_BRACKET)
-        CODE_ERROR("Missing closing bracket on line.", lexeFiles[parser_get_token()->fIndex], startingLine + 1);
+        CODE_ERROR("Missing closing bracket on line.", lexerFiles[parser_get_token()->fIndex], startingLine + 1);
 
     parser_move_next_token();
 
@@ -576,10 +570,11 @@ Statement* parser_parse_a_single_statement()
     return result;
 }
 
-/// @brief Entry point for parsing a list of lexerTokens.
-StatementBlockNamespace* parser_parse_statements()
+/// @brief Entry point for parsing a list of parserTokens.
+StatementBlockNamespace* parser_parse_statements_from_tokens(std::vector<Token*>& tokens)
 {
     parserPosition = 0;
+    parserTokens = tokens;
 
     auto ast = new StatementBlockNamespace(GLOBAL_NAMESPACE);
 
@@ -593,7 +588,7 @@ StatementBlockNamespace* parser_parse_statements()
 
         // statements should end with an end of line
         if (parser_get_token()->type != _TokenType::END_OF_LINE && parser_get_token()->type != _TokenType::END_OF_FILE)
-            CODE_ERROR("Expected the end of a statment but got [" + parser_get_token()->value + "].", lexeFiles[parser_get_token()->fIndex], parser_get_token()->line + 1);
+            CODE_ERROR("Expected the end of a statment but got [" + parser_get_token()->value + "].", lexerFiles[parser_get_token()->fIndex], parser_get_token()->line + 1);
 
         parser_move_next_token();
     }

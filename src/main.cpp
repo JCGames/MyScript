@@ -18,19 +18,19 @@ int main(int argc, char** argv)
         // include standard libraries
         for (auto& fileName : fileNames)
         {
-            lexer_lexify(libPathStr + "/" + fileName);
-            auto block = parser_parse_statements();
+            auto tokens = lexer_lexify(libPathStr + "/" + fileName);
+            auto block = parser_parse_statements_from_tokens(tokens);
+            lexer_delete_tokens(tokens);
+
             ast->statements.push_back(block);
         }
 
-        lexer_lexify(argv[1]);
-        auto block = parser_parse_statements();
+        auto tokens = lexer_lexify(argv[1]);
+        auto block = parser_parse_statements_from_tokens(tokens);
+        lexer_delete_tokens(tokens);
+
         ast->statements.push_back(block);
 
-        lexer_print_tokens();
         ast->print(EMPTY_STRING);
-
-        // do deletes
-        lexer_delete_tokens();
     }
 }

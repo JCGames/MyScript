@@ -7,35 +7,13 @@
 #include <fstream>
 
 #include "enums/token-type.hpp"
+#include "helpers/logging.hpp"
+#include "helpers/utils.hpp"
 
-#define LOG_ERROR(msg) logger_error(msg, __FILE__, __LINE__)
-#define CODE_ERROR(msg, file, line) logger_code_error(msg, file, line, __FILE__, __LINE__)
-
-void logger_error(std::string msg, const char* file, int line)
-{
-    std::cout << msg << " <<COMPILER:[" << file << ":" << line << "]>>" << std::endl;
-    exit(1);
-}
-
-void logger_code_error(std::string msg, std::string codeFile, unsigned int codeLine, const char* file, int line)
-{
-    std::cout << msg << " [" << codeFile << ":" << codeLine << "] <<COMPILER:[" << file << ":" << line << "]>>" << std::endl;
-    exit(1);
-}
-
-bool string_replace(std::string& str, const std::string& from, const std::string& to) 
-{
-    size_t start_pos = str.find(from);
-    if(start_pos == std::string::npos)
-        return false;
-    str.replace(start_pos, from.length(), to);
-    return true;
-}
-
-const std::string EMPTY_STRING = "";
+#define EMPTY_STRING ""
 
 /// @brief Holds the names of all the files that have been lexified and parsed.
-std::vector<std::string> lexeFiles;
+std::vector<std::string> lexerFiles;
 
 /// @brief Gets the current file that is being lexified
 unsigned int lexerFIndex;
@@ -56,37 +34,32 @@ struct Token
     }
 };
 
-std::vector<Token*> lexerTokens;
-
-void lexer_delete_tokens()
+void lexer_delete_tokens(std::vector<Token*>& tokens)
 {
-    for (auto token : lexerTokens)
+    for (auto token : tokens)
     {
         if (token != nullptr)
             delete token;
     }
 }
 
-void lexer_print_tokens()
+void lexer_print_tokens(std::vector<Token*>& tokens)
 {
-    for (const auto token : lexerTokens)
+    for (const auto token : tokens)
         std::cout << "Type: " << token_type_name(token->type) << " Value: |" << token->value << "| Line: " << token->line + 1 << std::endl;
 }
 
-void lexer_lexify(std::string fileName)
+std::vector<Token*> lexer_lexify(std::string fileName)
 {
     std::ifstream ifs(fileName);
 
     if (!ifs.is_open())
         LOG_ERROR("Was unable to open file with name " + fileName + ".");
 
-    lexeFiles.push_back(fileName);
-    lexerFIndex = lexeFiles.size() - 1;
+    lexerFiles.push_back(fileName);
+    lexerFIndex = lexerFiles.size() - 1;
 
-    // reset the tokens list
-    if (lexerTokens.size() > 0)
-        lexer_delete_tokens();
-    lexerTokens.clear();
+    std::vector<Token*> tokens;
 
     unsigned int line = 0;
     char c;
@@ -110,7 +83,7 @@ void lexer_lexify(std::string fileName)
         {
             auto token = new Token(_TokenType::END_OF_LINE, EMPTY_STRING, lexerFIndex, line);
             ++line;
-            lexerTokens.push_back(token);
+            tokens.push_back(token);
             continue;
         }
         // SYMBOL
@@ -132,46 +105,46 @@ void lexer_lexify(std::string fileName)
 
             if (symbol == "fn")
             {
-                lexerTokens.push_back(new Token(_TokenType::FUNCITON, symbol, lexerFIndex, line));
+                tokens.push_back(new Token(_TokenType::FUNCITON, symbol, lexerFIndex, line));
                 continue;
             }
             else if (symbol == "return")
             {
-                lexerTokens.push_back(new Token(_TokenType::RETURN, symbol, lexerFIndex, line));
+                tokens.push_back(new Token(_TokenType::RETURN, symbol, lexerFIndex, line));
                 continue;
             }
             else if (symbol == "struct")
             {
-                lexerTokens.push_back(new Token(_TokenType::STRUCT, symbol, lexerFIndex, line));
+                tokens.push_back(new Token(_TokenType::STRUCT, symbol, lexerFIndex, line));
                 continue;
             }
             else if (symbol == "if")
             {
-                lexerTokens.push_back(new Token(_TokenType::IF, symbol, lexerFIndex, line));
+                tokens.push_back(new Token(_TokenType::IF, symbol, lexerFIndex, line));
                 continue;
             }
             else if (symbol == "else")
             {
-                lexerTokens.push_back(new Token(_TokenType::ELSE, symbol, lexerFIndex, line));
+                tokens.push_back(new Token(_TokenType::ELSE, symbol, lexerFIndex, line));
                 continue;
             }
             else if (symbol == "and")
             {
-                lexerTokens.push_back(new Token(_TokenType::AND, symbol, lexerFIndex, line));
+                tokens.push_back(new Token(_TokenType::AND, symbol, lexerFIndex, line));
                 continue;
             }
             else if (symbol == "or")
             {
-                lexerTokens.push_back(new Token(_TokenType::OR, symbol, lexerFIndex, line));
+                tokens.push_back(new Token(_TokenType::OR, symbol, lexerFIndex, line));
                 continue;
             }
             else if (symbol == "null")
             {
-                lexerTokens.push_back(new Token(_TokenType::_NULL, symbol, lexerFIndex, line));
+                tokens.push_back(new Token(_TokenType::_NULL, symbol, lexerFIndex, line));
                 continue;
             }
 
-            lexerTokens.push_back(new Token(_TokenType::SYMBOL, symbol, lexerFIndex, line));
+            tokens.push_back(new Token(_TokenType::SYMBOL, symbol, lexerFIndex, line));
             continue;
         }
         // std::string
@@ -186,11 +159,24 @@ void lexer_lexify(std::string fileName)
             c = ifs.get();
 
             if (c != '"')
-                CODE_ERROR("Missing a closing quotes.", lexeFiles[lexerFIndex], beginLine + 1);
+                CODE_ERROR("Missing a closing quotes.", lexerFiles[lexerFIndex], beginLine + 1);
 
+            /**
+             * Escaping characters in strings.
+             */
             string_replace(str, "\\n", "\n");
+            string_replace(str, "\\'", "\'");
+            string_replace(str, "\\\"", "\"");
+            string_replace(str, "\\?", "\?");
+            string_replace(str, "\\\\", "\\");
+            string_replace(str, "\\a", "\a");
+            string_replace(str, "\\b", "\b");
+            string_replace(str, "\\f", "\f");
+            string_replace(str, "\\r", "\r");
+            string_replace(str, "\\t", "\t");
+            string_replace(str, "\\v", "\v");
 
-            lexerTokens.push_back(new Token(_TokenType::STRING, str, lexerFIndex, line));
+            tokens.push_back(new Token(_TokenType::STRING, str, lexerFIndex, line));
             continue;
         }
         // NUMBER
@@ -215,98 +201,100 @@ void lexer_lexify(std::string fileName)
                 } 
                 else if (c == '.' && hasDecimalPoint)
                 {
-                    CODE_ERROR("Number has too many decimal points.", lexeFiles[lexerFIndex], line + 1);
+                    CODE_ERROR("Number has too many decimal points.", lexerFiles[lexerFIndex], line + 1);
                 }
 
                 number += c;
             }
 
-            lexerTokens.push_back(new Token(_TokenType::NUMBER, number, lexerFIndex, line));
+            tokens.push_back(new Token(_TokenType::NUMBER, number, lexerFIndex, line));
             continue;
         }
         // DOUBLE OPERATORS
         else if (c == '-' && ifs.peek() == '>')
         {
             char next = ifs.get();
-            lexerTokens.push_back(new Token(_TokenType::ASSIGN, std::string(1, c) + std::string(1, next), lexerFIndex, line));
+            tokens.push_back(new Token(_TokenType::ASSIGN, std::string(1, c) + std::string(1, next), lexerFIndex, line));
         }
         else if (c == '!' && ifs.peek() == '=')
         {
             char next = ifs.get();
-            lexerTokens.push_back(new Token(_TokenType::NOT_EQUALS, std::string(1, c) + std::string(1, next), lexerFIndex, line));
+            tokens.push_back(new Token(_TokenType::NOT_EQUALS, std::string(1, c) + std::string(1, next), lexerFIndex, line));
         }
         else if (c == '>' && ifs.peek() == '=')
         {
             char next = ifs.get();
-            lexerTokens.push_back(new Token(_TokenType::GREATER_THAN_E, std::string(1, c) + std::string(1, next), lexerFIndex, line));
+            tokens.push_back(new Token(_TokenType::GREATER_THAN_E, std::string(1, c) + std::string(1, next), lexerFIndex, line));
         }
         else if (c == '<' && ifs.peek() == '=')
         {
             char next = ifs.get();
-            lexerTokens.push_back(new Token(_TokenType::LESS_THAN_E, std::string(1, c) + std::string(1, next), lexerFIndex, line));
+            tokens.push_back(new Token(_TokenType::LESS_THAN_E, std::string(1, c) + std::string(1, next), lexerFIndex, line));
         }
         // SINGLE CHARACTER OPERATORS
         else if (c == '=')
         {
-            lexerTokens.push_back(new Token(_TokenType::EQUALS, std::string(1, c), lexerFIndex, line));
+            tokens.push_back(new Token(_TokenType::EQUALS, std::string(1, c), lexerFIndex, line));
         }
         else if (c == '>')
         {
-            lexerTokens.push_back(new Token(_TokenType::GREATER_THAN, std::string(1, c), lexerFIndex, line));
+            tokens.push_back(new Token(_TokenType::GREATER_THAN, std::string(1, c), lexerFIndex, line));
         }
         else if (c == '<')
         {
-            lexerTokens.push_back(new Token(_TokenType::LESS_THAN, std::string(1, c), lexerFIndex, line));
+            tokens.push_back(new Token(_TokenType::LESS_THAN, std::string(1, c), lexerFIndex, line));
         }
         else if (c == '+')
         {
-            lexerTokens.push_back(new Token(_TokenType::PLUS, std::string(1, c), lexerFIndex, line));
+            tokens.push_back(new Token(_TokenType::PLUS, std::string(1, c), lexerFIndex, line));
         }
         else if (c == '-')
         {
-            lexerTokens.push_back(new Token(_TokenType::MINUS, std::string(1, c), lexerFIndex, line));
+            tokens.push_back(new Token(_TokenType::MINUS, std::string(1, c), lexerFIndex, line));
         }
         else if (c == '*')
         {
-            lexerTokens.push_back(new Token(_TokenType::MULTIPLY, std::string(1, c), lexerFIndex, line));
+            tokens.push_back(new Token(_TokenType::MULTIPLY, std::string(1, c), lexerFIndex, line));
         }
         else if (c == '/')
         {
-            lexerTokens.push_back(new Token(_TokenType::DIVIDE, std::string(1, c), lexerFIndex, line));
+            tokens.push_back(new Token(_TokenType::DIVIDE, std::string(1, c), lexerFIndex, line));
         }
         else if (c == '%')
         {
-            lexerTokens.push_back(new Token(_TokenType::MODULUS, std::string(1, c), lexerFIndex, line));
+            tokens.push_back(new Token(_TokenType::MODULUS, std::string(1, c), lexerFIndex, line));
         }
         else if (c == '(')
         {
-            lexerTokens.push_back(new Token(_TokenType::OPEN_PARAN, std::string(1, c), lexerFIndex, line));
+            tokens.push_back(new Token(_TokenType::OPEN_PARAN, std::string(1, c), lexerFIndex, line));
         }
         else if (c == ')')
         {
-            lexerTokens.push_back(new Token(_TokenType::CLOSE_PARAN, std::string(1, c), lexerFIndex, line));
+            tokens.push_back(new Token(_TokenType::CLOSE_PARAN, std::string(1, c), lexerFIndex, line));
         }
         else if (c == '{')
         {
-            lexerTokens.push_back(new Token(_TokenType::OPEN_BRACKET, std::string(1, c), lexerFIndex, line));
+            tokens.push_back(new Token(_TokenType::OPEN_BRACKET, std::string(1, c), lexerFIndex, line));
         }
         else if (c == '}')
         {
-            lexerTokens.push_back(new Token(_TokenType::CLOSE_BRACKET, std::string(1, c), lexerFIndex, line));
+            tokens.push_back(new Token(_TokenType::CLOSE_BRACKET, std::string(1, c), lexerFIndex, line));
         }
         else if (c == ',')
         {
-            lexerTokens.push_back(new Token(_TokenType::COMMA, std::string(1, c), lexerFIndex, line));
+            tokens.push_back(new Token(_TokenType::COMMA, std::string(1, c), lexerFIndex, line));
         }
         else if (c == '.')
         {
-            lexerTokens.push_back(new Token(_TokenType::DOT, std::string(1, c), lexerFIndex, line));
+            tokens.push_back(new Token(_TokenType::DOT, std::string(1, c), lexerFIndex, line));
         }
     }
 
-    lexerTokens.push_back(new Token(_TokenType::END_OF_FILE, EMPTY_STRING, lexerFIndex, line));
+    tokens.push_back(new Token(_TokenType::END_OF_FILE, EMPTY_STRING, lexerFIndex, line));
 
     ifs.close();
+
+    return tokens;
 }
 
 #endif
