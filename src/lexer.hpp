@@ -103,6 +103,9 @@ std::vector<Token*> lexer_lexify(std::string fileName)
                 symbol += ifs.get();
             }
 
+            /**
+             * Keywords
+             */
             if (symbol == "fn")
             {
                 tokens.push_back(new Token(_TokenType::FUNCITON, symbol, lexerFIndex, line));
@@ -147,7 +150,7 @@ std::vector<Token*> lexer_lexify(std::string fileName)
             tokens.push_back(new Token(_TokenType::SYMBOL, symbol, lexerFIndex, line));
             continue;
         }
-        // std::string
+        // STRING
         else if (c == '"')
         {
             std::string str = EMPTY_STRING;

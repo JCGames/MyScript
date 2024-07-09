@@ -32,6 +32,31 @@ protected:
     }
 };
 
+struct SyntaxTree
+{
+    std::vector<std::string> files;
+    std::vector<Statement*> statements;
+
+    ~SyntaxTree()
+    {
+        for (auto& stmt : statements)
+        {
+            if (stmt != nullptr)
+                delete stmt;
+        }
+    }
+
+    void print()
+    {
+        std::cout << "Syntax Tree: [" << std::endl;
+
+        for (auto& stmt : statements)
+            stmt->print("\t");
+
+        std::cout << "]" << std::endl;
+    }
+};
+
 struct StatementExpression : Statement
 {
     Statement* root;

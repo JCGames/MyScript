@@ -571,12 +571,10 @@ Statement* parser_parse_a_single_statement()
 }
 
 /// @brief Entry point for parsing a list of parserTokens.
-StatementBlockNamespace* parser_parse_statements_from_tokens(std::vector<Token*>& tokens)
+void parser_parse_statements_from_tokens(SyntaxTree* tree, std::vector<Token*>& tokens)
 {
     parserPosition = 0;
     parserTokens = tokens;
-
-    auto ast = new StatementBlockNamespace(GLOBAL_NAMESPACE);
 
     // read until the end of the file
     while (parser_get_token()->type != _TokenType::END_OF_FILE)
@@ -584,7 +582,7 @@ StatementBlockNamespace* parser_parse_statements_from_tokens(std::vector<Token*>
         auto stmt = parser_parse_a_single_statement();
 
         if (stmt != nullptr)
-            ast->statements.push_back(stmt);
+            tree->statements.push_back(stmt);
 
         // statements should end with an end of line
         if (parser_get_token()->type != _TokenType::END_OF_LINE && parser_get_token()->type != _TokenType::END_OF_FILE)
@@ -592,8 +590,6 @@ StatementBlockNamespace* parser_parse_statements_from_tokens(std::vector<Token*>
 
         parser_move_next_token();
     }
-
-    return ast;
 }
 
 #pragma endregion

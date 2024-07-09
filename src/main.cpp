@@ -1,7 +1,7 @@
 
 #include <iostream>
 
-#include "path.hpp"
+#include "helpers/path.hpp"
 #include "parser.hpp"
 
 int main(int argc, char** argv)
@@ -13,24 +13,22 @@ int main(int argc, char** argv)
         auto libPathStr = libPath.to_string();
         auto fileNames = libPath.get_files();
 
-        auto ast = new StatementBlock();
+        auto tree = new SyntaxTree();
 
         // include standard libraries
         for (auto& fileName : fileNames)
         {
             auto tokens = lexer_lexify(libPathStr + "/" + fileName);
-            auto block = parser_parse_statements_from_tokens(tokens);
+            parser_parse_statements_from_tokens(tree, tokens);
             lexer_delete_tokens(tokens);
-
-            ast->statements.push_back(block);
         }
 
         auto tokens = lexer_lexify(argv[1]);
-        auto block = parser_parse_statements_from_tokens(tokens);
+        parser_parse_statements_from_tokens(tree, tokens);
         lexer_delete_tokens(tokens);
 
-        ast->statements.push_back(block);
+        tree->print();
 
-        ast->print(EMPTY_STRING);
+        delete tree;
     }
 }

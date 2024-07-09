@@ -2,9 +2,16 @@
 #define PATHING
 
 #include <vector>
-#include <string>
+#include <string.h>
 
+#ifdef _WIN32
 #include <windows.h>
+#elif __linux__
+#include <libgen.h>         // dirname
+#include <unistd.h>         // readlink
+#include <linux/limits.h>   // PATH_MAX
+#endif
+
 #include <unistd.h>
 #include <stdio.h>
 #include <cstdlib>
@@ -93,9 +100,19 @@ public:
      */
     static Path get_executable_path()
     {
+#if _WIN32
         char buffer[MAX_PATH];
         GetModuleFileNameA(NULL, buffer, MAX_PATH);
         return Path(std::string(buffer));
+#elif __linux__
+        char result[PATH_MAX];
+        ssize_t count = readlink("/proc/self/exe", result, PATH_MAX);
+        const char *path;
+        if (count != -1) {
+            path = dirname(result);
+        }
+        return Path(std::string(result));
+#endif
     }
 
     /**
@@ -105,7 +122,11 @@ public:
     {
         char buffer[FILENAME_MAX];
 
+#if _WIN32
         if (_getcwd(buffer, sizeof(buffer)) != NULL)
+#elif __linux__
+        if (getcwd(buffer, sizeof(buffer)) != NULL)
+#endif
             return Path(std::string(buffer));
 
         return Path();
