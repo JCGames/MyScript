@@ -311,29 +311,28 @@ StatementExpression* parser_parse_exp()
 
 #pragma endregion
 
-Statement* parser_parse_a_single_statement();
+Statement* parser_parse_a_single_statement(bool topLevel = false);
 
 /// @brief Parses a block with the first token being an open bracket.
-StatementBlock* parser_parse_block()
+StatementBlock* parser_parse_block(bool withBrackets = true)
 {
-    StatementBlock* block = new StatementBlock();
+    auto block = new StatementBlock();
 
-    if (parser_get_token()->type != _TokenType::OPEN_BRACKET)
+    if (withBrackets && parser_get_token()->type != _TokenType::OPEN_BRACKET)
         CODE_ERROR("Missing an open bracket.", lexerFiles[parser_get_token()->fIndex], parser_get_token()->line + 1);
 
-    unsigned int startingLine = parser_get_token()->line;
+    auto startingLine = parser_get_token()->line;
 
-    parser_move_next_token();
+    if (withBrackets)
+        parser_move_next_token();
 
     while (parser_get_token()->type != _TokenType::END_OF_FILE)
     {
-        auto stmt = parser_parse_a_single_statement();
-
-        if (stmt != nullptr)
+        if (auto stmt = parser_parse_a_single_statement())
             block->statements.push_back(stmt);
 
         // if we encounter a close bracket then we are at the end of the block
-        if (parser_get_token()->type == _TokenType::CLOSE_BRACKET)
+        if (withBrackets && parser_get_token()->type == _TokenType::CLOSE_BRACKET)
             break;
 
         // statements should end with an end of line
@@ -343,10 +342,11 @@ StatementBlock* parser_parse_block()
         parser_move_next_token();
     }
 
-    if (parser_get_token()->type != _TokenType::CLOSE_BRACKET)
+    if (withBrackets && parser_get_token()->type != _TokenType::CLOSE_BRACKET)
         CODE_ERROR("Expected a close bracket.", lexerFiles[parser_get_token()->fIndex], startingLine + 1);
 
-    parser_move_next_token();
+    if (withBrackets)
+        parser_move_next_token();
 
     return block;
 }
@@ -529,7 +529,7 @@ StatementIf* parser_parse_if()
 }
 
 /// @brief Parses the next statement.
-Statement* parser_parse_a_single_statement()
+Statement* parser_parse_a_single_statement(bool topLevel)
 {
     Statement* result = nullptr;
 
@@ -566,12 +566,45 @@ Statement* parser_parse_a_single_statement()
         parser_move_next_token();
         result = new StatementReturn(parser_parse_exp());
     }
+    else if (parser_get_token()->type == _TokenType::NAMESPACE)
+    {
+        if (!topLevel)
+            CODE_ERROR("Namespaces cannot be nested.", lexerFiles[parser_get_token()->fIndex], parser_get_token()->line);
+        
+        parser_move_next_token();
+        auto ns = new StatementBlockNamespace(parser_get_token()->value);
+
+        parser_move_next_token_skip_eols();
+
+        StatementBlock* block;
+
+        if (parser_get_token()->type == _TokenType::OPEN_BRACKET)
+            block = parser_parse_block();
+        else
+            block = parser_parse_block(false);
+
+        for (auto& stmt : block->statements)
+        {
+            ns->statements.push_back(stmt);
+
+            // must set the statements to null after
+            // otherwise the deconstructor for the block
+            // will delete its child statements and
+            // thus, no statements will actually be transfered
+            // to the namespace block
+            stmt = nullptr;
+        }
+
+        delete block;
+
+        result = ns;
+    }
 
     return result;
 }
 
 /// @brief Entry point for parsing a list of parserTokens.
-void parser_parse_statements_from_tokens(SyntaxTree* tree, std::vector<Token*>& tokens)
+void parser_get_syntax_tree_from_tokens(SyntaxTree* tree, std::vector<Token*>& tokens)
 {
     parserPosition = 0;
     parserTokens = tokens;
@@ -579,9 +612,7 @@ void parser_parse_statements_from_tokens(SyntaxTree* tree, std::vector<Token*>& 
     // read until the end of the file
     while (parser_get_token()->type != _TokenType::END_OF_FILE)
     {
-        auto stmt = parser_parse_a_single_statement();
-
-        if (stmt != nullptr)
+        if (auto stmt = parser_parse_a_single_statement(true))
             tree->statements.push_back(stmt);
 
         // statements should end with an end of line

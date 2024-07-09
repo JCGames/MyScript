@@ -18,6 +18,7 @@ enum class _TokenType
     IF,
     ELSE,
     _NULL,
+    NAMESPACE,
 
     PLUS,
     MINUS,
@@ -59,6 +60,7 @@ std::string token_type_name(_TokenType type)
         case _TokenType::IF: return "IF";
         case _TokenType::ELSE: return "ELSE";
         case _TokenType::_NULL: return "_NULL";
+        case _TokenType::NAMESPACE: return "NAMESPACE";
 
         case _TokenType::PLUS: return "PLUS";
         case _TokenType::MINUS: return "MINUS";

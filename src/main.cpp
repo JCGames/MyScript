@@ -19,12 +19,12 @@ int main(int argc, char** argv)
         for (auto& fileName : fileNames)
         {
             auto tokens = lexer_lexify(libPathStr + "/" + fileName);
-            parser_parse_statements_from_tokens(tree, tokens);
+            parser_get_syntax_tree_from_tokens(tree, tokens);
             lexer_delete_tokens(tokens);
         }
 
         auto tokens = lexer_lexify(argv[1]);
-        parser_parse_statements_from_tokens(tree, tokens);
+        parser_get_syntax_tree_from_tokens(tree, tokens);
         lexer_delete_tokens(tokens);
 
         tree->print();

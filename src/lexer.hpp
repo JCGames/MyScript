@@ -146,6 +146,11 @@ std::vector<Token*> lexer_lexify(std::string fileName)
                 tokens.push_back(new Token(_TokenType::_NULL, symbol, lexerFIndex, line));
                 continue;
             }
+            else if (symbol == "namespace")
+            {
+                tokens.push_back(new Token(_TokenType::NAMESPACE, symbol, lexerFIndex, line));
+                continue;
+            }
 
             tokens.push_back(new Token(_TokenType::SYMBOL, symbol, lexerFIndex, line));
             continue;
