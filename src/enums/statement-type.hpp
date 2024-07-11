@@ -5,7 +5,7 @@
 
 enum class StatementType
 {
-    VALUE,
+    CONSTANT,
     EXPRESSION,
     BINARY_OPERATOR,
     UNARY_OPERATOR,
@@ -25,7 +25,7 @@ std::string statement_type_name(StatementType type)
 {
     switch (type)
     {
-        case StatementType::VALUE: return "VALUE";
+        case StatementType::CONSTANT: return "CONSTANT";
         case StatementType::EXPRESSION: return "EXPRESSION";
         case StatementType::BINARY_OPERATOR: return "BINARY_OPERATOR";
         case StatementType::UNARY_OPERATOR: return "UNARY_OPERATOR";

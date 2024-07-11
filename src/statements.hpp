@@ -139,12 +139,12 @@ struct StatementUnaryOperator : Statement
     }
 };
 
-struct StatementValue : Statement
+struct StatementConstant : Statement
 {
     DataType dataType;
     std::string value;
 
-    StatementValue(const DataType& dataType, const std::string& value) : Statement(StatementType::VALUE)
+    StatementConstant(const DataType& dataType, const std::string& value) : Statement(StatementType::CONSTANT)
     {
         this->dataType = dataType;
         this->value = value;
@@ -159,17 +159,17 @@ struct StatementValue : Statement
 
 struct StatementSymbol : Statement
 {
-    std::string symbol;
+    std::string value;
 
-    StatementSymbol(const std::string& symbol) : Statement(StatementType::SYMBOL)
+    StatementSymbol(const std::string& value) : Statement(StatementType::SYMBOL)
     {
-        this->symbol = symbol;
+        this->value = value;
     }
 
     void print(std::string padding) override
     {
         print_type(padding);
-        std::cout << padding << symbol << std::endl;
+        std::cout << padding << value << std::endl;
     }
 };
 
@@ -249,7 +249,7 @@ struct StatementFunction : Statement
         std::cout << padding << "Params: [" << std::endl;
 
         for (auto& stmtSymbol : params)
-            std::cout << padding << '\t' << stmtSymbol->symbol << std::endl;
+            std::cout << padding << '\t' << stmtSymbol->value << std::endl;
 
         std::cout << padding << "]" << std::endl;
         std::cout << padding << "Function Block:" << std::endl;

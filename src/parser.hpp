@@ -14,6 +14,7 @@
 #define GLOBAL_NAMESPACE "Global"
 
 unsigned int parserPosition = 0;
+unsigned int parserUniqueInt = 0;
 std::vector<Token*> parserTokens;
 
 // Statement rule symbol descriptions
@@ -52,10 +53,17 @@ void parser_move_next_token_skip_eols()
         parser_move_next_token();
 }
 
+unsigned int& parser_get_next_unique_int()
+{
+    ++parserUniqueInt;
+    return parserUniqueInt;
+}
+
 #pragma region Expressions
 
 StatementExpression* parser_parse_exp();
 StatementFunctionCall* parser_parse_function_call();
+StatementFunction* parser_parse_function(const bool& hasName = true);
 
 Statement* parser_parse_exp_term()
 {
@@ -78,12 +86,12 @@ Statement* parser_parse_exp_term()
         }
 
         result = isDecimal ?
-            new StatementValue(DataType::FLOAT, parser_get_token()->value) :
-            new StatementValue(DataType::INT, parser_get_token()->value);
+            new StatementConstant(DataType::FLOAT, parser_get_token()->value) :
+            new StatementConstant(DataType::INT, parser_get_token()->value);
     }
     else if (parser_get_token()->type == _TokenType::STRING)
     {
-        result = new StatementValue(DataType::STRING, parser_get_token()->value);
+        result = new StatementConstant(DataType::STRING, parser_get_token()->value);
     }
     else if (parser_get_token()->type == _TokenType::SYMBOL)
     {
@@ -109,15 +117,19 @@ Statement* parser_parse_exp_term()
     }
     else if (parser_get_token()->type == _TokenType::_NULL)
     {
-        result = new StatementValue(DataType::_NULL, EMPTY_STRING);
+        result = new StatementConstant(DataType::_NULL, EMPTY_STRING);
     }
     else if (parser_get_token()->type == _TokenType::_TRUE)
     {
-        result = new StatementValue(DataType::BOOL, "1");
+        result = new StatementConstant(DataType::BOOL, "1");
     }
     else if (parser_get_token()->type == _TokenType::_FALSE)
     {
-        result = new StatementValue(DataType::BOOL, "0");
+        result = new StatementConstant(DataType::BOOL, "0");
+    }
+    else if (parser_get_token()->type == _TokenType::FUNCITON)
+    {
+        return parser_parse_function(false);
     }
 
     parser_move_next_token();
@@ -339,8 +351,6 @@ void parser_assert_end_of_statement()
 {
     if (parser_get_token()->type != _TokenType::END_OF_LINE && parser_get_token()->type != _TokenType::END_OF_FILE)
         CODE_ERROR("Expected the end of a statment but got [" + parser_get_token()->value + "].", lexerFiles[parser_get_token()->fIndex], parser_get_token()->line + 1);
-
-    parser_move_next_token();
 }
 
 /**
@@ -375,6 +385,7 @@ StatementBlock* parser_parse_block(const bool& withBrackets = true)
         // make sure the statement ends with
         // an END_OF_LINE token
         parser_assert_end_of_statement();
+        parser_move_next_token();
     }
 
     if (withBrackets)
@@ -393,14 +404,23 @@ StatementBlock* parser_parse_block(const bool& withBrackets = true)
  * 
  * }-EOL
  */
-StatementFunction* parser_parse_function()
+StatementFunction* parser_parse_function(const bool& hasName)
 {
-    parser_move_next_token();
+    auto function = new StatementFunction(EMPTY_STRING);
 
-    if (parser_get_token()->type != _TokenType::SYMBOL)
-        CODE_ERROR("Expected a function name.", lexerFiles[parser_get_token()->fIndex], parser_get_token()->line + 1);
+    if (hasName)
+    {
+        parser_move_next_token();
 
-    auto function = new StatementFunction(parser_get_token()->value);
+        if (parser_get_token()->type != _TokenType::SYMBOL)
+            CODE_ERROR("Expected a function name.", lexerFiles[parser_get_token()->fIndex], parser_get_token()->line + 1);
+
+        function->name = parser_get_token()->value;
+    }
+    else
+    {
+        function->name = std::to_string(parser_get_next_unique_int()) + "_";
+    }
 
     parser_move_next_token();
 
@@ -553,12 +573,7 @@ StatementStruct* parser_parse_struct()
             break;
 
         parser_assert_end_of_statement();
-
-        // assert end of statement just moves to the next token
-        // so we have to make sure that we read to the next non-
-        // end of line token
-        if (parser_get_token()->type == _TokenType::END_OF_LINE)
-            parser_move_next_token_skip_eols();
+        parser_move_next_token_skip_eols();
     }
 
     if (parser_get_token()->type != _TokenType::CLOSE_BRACKET)
@@ -756,6 +771,7 @@ void parser_get_syntax_tree(SyntaxTree& tree, const std::vector<Token*>& tokens)
             tree.statements.push_back(stmt);
 
         parser_assert_end_of_statement();
+        parser_move_next_token();
     }
 }
 
