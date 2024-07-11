@@ -13,22 +13,20 @@ int main(int argc, char** argv)
         auto libPathStr = libPath.to_string();
         auto fileNames = libPath.get_files();
 
-        auto tree = new SyntaxTree();
+        SyntaxTree tree;
 
         // include standard libraries
         for (auto& fileName : fileNames)
         {
-            auto tokens = lexer_lexify(libPathStr + "/" + fileName);
-            parser_get_syntax_tree_from_tokens(tree, tokens);
+            auto tokens = lexer_get_tokens(libPathStr + "/" + fileName);
+            parser_get_syntax_tree(tree, tokens);
             lexer_delete_tokens(tokens);
         }
 
-        auto tokens = lexer_lexify(argv[1]);
-        parser_get_syntax_tree_from_tokens(tree, tokens);
+        auto tokens = lexer_get_tokens(argv[1]);
+        parser_get_syntax_tree(tree, tokens);
         lexer_delete_tokens(tokens);
 
-        tree->print();
-
-        delete tree;
+        tree.print();
     }
 }

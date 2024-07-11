@@ -49,7 +49,7 @@ void lexer_print_tokens(std::vector<Token*>& tokens)
         std::cout << "Type: " << token_type_name(token->type) << " Value: |" << token->value << "| Line: " << token->line + 1 << std::endl;
 }
 
-std::vector<Token*> lexer_lexify(std::string fileName)
+std::vector<Token*> lexer_get_tokens(std::string fileName)
 {
     std::ifstream ifs(fileName);
 
@@ -64,22 +64,19 @@ std::vector<Token*> lexer_lexify(std::string fileName)
     unsigned int line = 0;
     char c;
 
-    // tokenize the entire file
     while (!ifs.eof())
     {
         c = ifs.get();
 
-        // COMMENT
+        // COMMENT - will be completely ignored
         if (c == '/' && ifs.peek() == '/')
         {
             while (!ifs.eof() && ifs.peek() != '\n')
                 ifs.get();
-
             continue;
         }
-
         // END_OF_LINE
-        if (c == '\n')
+        else if (c == '\n')
         {
             auto token = new Token(_TokenType::END_OF_LINE, EMPTY_STRING, lexerFIndex, line);
             ++line;
@@ -149,6 +146,21 @@ std::vector<Token*> lexer_lexify(std::string fileName)
             else if (symbol == "namespace")
             {
                 tokens.push_back(new Token(_TokenType::NAMESPACE, symbol, lexerFIndex, line));
+                continue;
+            }
+            else if (symbol == "while")
+            {
+                tokens.push_back(new Token(_TokenType::WHILE, symbol, lexerFIndex, line));
+                continue;
+            }
+            else if (symbol == "true")
+            {
+                tokens.push_back(new Token(_TokenType::_TRUE, symbol, lexerFIndex, line));
+                continue;
+            }
+            else if (symbol == "false")
+            {
+                tokens.push_back(new Token(_TokenType::_FALSE, symbol, lexerFIndex, line));
                 continue;
             }
 

@@ -18,12 +18,12 @@ struct Statement
         this->type = type;
     }
 
-    virtual ~Statement() { };
-
     virtual void print(std::string padding)
     {
         print_type(padding);
     }
+
+    virtual void _delete() { }
 
 protected:
     void print_type(std::string padding)
@@ -42,7 +42,10 @@ struct SyntaxTree
         for (auto& stmt : statements)
         {
             if (stmt != nullptr)
+            {
+                stmt->_delete();
                 delete stmt;
+            }
         }
     }
 
@@ -66,7 +69,7 @@ struct StatementExpression : Statement
         this->root = root;
     };
 
-    ~StatementExpression() override
+    void _delete() override
     {
         delete root;
     }
@@ -91,7 +94,7 @@ struct StatementBinaryOperator : Statement
         this->right = right;
     }
 
-    ~StatementBinaryOperator() override
+    void _delete() override
     {
         delete left;
         delete right;
@@ -121,7 +124,7 @@ struct StatementUnaryOperator : Statement
         this->root = root;
     }
 
-    ~StatementUnaryOperator() override
+    void _delete() override
     {
         delete root;
     }
@@ -174,17 +177,11 @@ struct StatementBlock : Statement
 {
     std::vector<Statement*> statements;
 
-    StatementBlock() : Statement(StatementType::BLOCK)
-    {
-        
-    }
+    StatementBlock() : Statement(StatementType::BLOCK) { }
 
-    StatementBlock(bool isNamespace) : Statement(StatementType::NAMESPACE)
-    {
-        
-    }
+    StatementBlock(bool isNamespace) : Statement(StatementType::NAMESPACE) { }
 
-    ~StatementBlock() override
+    void _delete() override
     {
         for (auto& stmt : statements)
             delete stmt;
@@ -236,7 +233,7 @@ struct StatementFunction : Statement
         this->name = name;
     }
 
-    ~StatementFunction() override
+    void _delete() override
     {        
         for (auto& stmt : params)
             delete stmt;
@@ -271,7 +268,7 @@ struct StatementReturn : Statement
         this->expression = expression;
     }
 
-    ~StatementReturn()
+    void _delete() override
     {
         delete expression;
     }
@@ -293,7 +290,7 @@ struct StatementFunctionCall : Statement
         this->name = name;
     }
 
-    ~StatementFunctionCall()
+    void _delete() override
     {
         for (auto& stmt : argExpressions)
             delete stmt;
@@ -315,19 +312,17 @@ struct StatementFunctionCall : Statement
 
 struct StatementStruct : Statement
 {
-    StatementSymbol* name;
+    std::string name;
     std::vector<StatementExpression*> variables;
     std::vector<StatementFunction*> functions;
 
-    StatementStruct(StatementSymbol* name) : Statement(StatementType::STRUCT)
+    StatementStruct(std::string name) : Statement(StatementType::STRUCT)
     {
         this->name = name;
     }
 
-    ~StatementStruct()
+    void _delete() override
     {
-        delete this->name;
-
         for (auto& stmt : variables)
             delete stmt;
 
@@ -339,8 +334,7 @@ struct StatementStruct : Statement
     {
         print_type(padding);
 
-        if (this->name != nullptr)
-            std::cout << padding << "Name: " << this->name->symbol << std::endl;
+        std::cout << padding << "Name: " << this->name << std::endl;
         std::cout << padding << "Variables: [" << std::endl;
 
         for (auto& stmt : variables)
@@ -365,7 +359,7 @@ struct StatementElse : Statement
         this->block = block;
     }
 
-    ~StatementElse()
+    void _delete() override
     {
         delete this->block;
     }
@@ -392,8 +386,9 @@ struct StatementIf : Statement
         this->_else = _else;
     }
 
-    ~StatementIf()
+    void _delete() override
     {
+        delete this->condition;
         delete this->block;
 
         if (this->_elseIf != nullptr)
@@ -420,6 +415,37 @@ struct StatementIf : Statement
         
         if (this->_else != nullptr)
             _else->print(padding + '\t');
+    }
+};
+
+struct StatementWhile : Statement
+{
+    StatementExpression* condition;
+    StatementBlock* block;
+
+    StatementWhile(StatementExpression* condition, StatementBlock* block) : Statement(StatementType::WHILE)
+    {
+        this->condition = condition;
+        this->block = block;
+    }
+
+    void _delete() override
+    {
+        delete this->condition;
+        delete this->block;
+    }
+
+    void print(std::string padding) override
+    {
+        print_type(padding);
+
+        std::cout << padding << "Condition: [" << std::endl;
+
+        condition->print(padding + '\t');
+
+        std::cout << padding << "]" << std::endl;
+
+        block->print(padding + '\t');
     }
 };
 
