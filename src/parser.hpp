@@ -10,9 +10,6 @@
 #include "statements.hpp"
 #include "lexer.hpp"
 
-#define CAST(value, type) static_cast<type*>(value)
-#define GLOBAL_NAMESPACE "Global"
-
 unsigned int parserPosition = 0;
 unsigned int parserUniqueInt = 0;
 std::vector<Token*> parserTokens;
@@ -60,6 +57,64 @@ unsigned int& parser_get_next_unique_int()
 {
     ++parserUniqueInt;
     return parserUniqueInt;
+}
+
+/**
+ * Throws an error if the current token is not of the given type.
+ */
+void parser_assert_token_is(_TokenType type, const std::string& expectedValue)
+{
+    if (parser_get_token()->type != type)
+    {
+        CODE_ERROR("Expected a " + expectedValue + " but got |" + parser_get_token()->value + "|", parser_get_token()->loc.fileName, parser_get_token()->loc.line + 1);
+    }
+}
+
+/**
+ * Throws an error if the current token is not of the given type on the given line.
+ */
+void parser_assert_token_is(_TokenType type, const std::string& expectedValue, const unsigned int& line)
+{
+    if (parser_get_token()->type != type)
+    {
+        CODE_ERROR("Expected a " + expectedValue + " but got " + parser_get_token()->value, parser_get_token()->loc.fileName, line);
+    }
+}
+
+/**
+ * Statements should end with an END_OF_LINE or END_OF_FILE token.
+ */
+void parser_assert_end_of_statement()
+{
+    if (parser_get_token()->type != _TokenType::END_OF_LINE && parser_get_token()->type != _TokenType::END_OF_FILE)
+        CODE_ERROR("Expected the end of a statment but got |" + parser_get_token()->value + "|.", parser_get_token()->loc.fileName, parser_get_token()->loc.line + 1);
+}
+
+/**
+ * Throws an error if the current token is not of the given type.
+ */
+void parser_assert_stmt_is_not_null(const Statement* stmt, const std::string& expectedValue)
+{
+    if (stmt == nullptr)
+    {
+        CODE_ERROR("Expected a " + expectedValue + " but got |" + parser_get_token()->value + "|", parser_get_token()->loc.fileName, parser_get_token()->loc.line + 1);
+    }
+}
+
+/**
+ * Raise an error if a statement in a block is invalid.
+ */
+void parser_raise_error_invalid_stmt(const std::string& inWhat)
+{
+    CODE_ERROR("Invalid statement in " + inWhat + ".", parser_get_token()->loc.fileName, parser_get_token()->loc.line + 1);
+}
+
+/**
+ * Raise an error if the statement could not be parsed because it was unknown.
+ */
+void parser_raise_error_unknown_stmt()
+{
+    CODE_ERROR("Unknown statment |" + parser_get_token()->value + "|", parser_get_token()->loc.fileName, parser_get_token()->loc.line + 1);
 }
 
 #pragma region Expressions
@@ -115,8 +170,7 @@ Statement* parser_parse_exp_term()
 
         result = parser_parse_exp();
 
-        if (parser_get_token()->type != _TokenType::CLOSE_PARAN)
-            CODE_ERROR("Expected a close paranthesis.", parser_get_token()->loc.fileName, errorLine + 1);
+        parser_assert_token_is(_TokenType::CLOSE_PARAN, ")", errorLine + 1);
     }
     else if (parser_get_token()->type == _TokenType::_NULL)
     {
@@ -348,15 +402,6 @@ StatementExpression* parser_parse_exp()
 Statement* parser_parse_a_single_statement(const bool& topLevel = false);
 
 /**
- * Statements should end with an END_OF_LINE or END_OF_FILE token.
- */
-void parser_assert_end_of_statement()
-{
-    if (parser_get_token()->type != _TokenType::END_OF_LINE && parser_get_token()->type != _TokenType::END_OF_FILE)
-        CODE_ERROR("Expected the end of a statment but got [" + parser_get_token()->value + "].", parser_get_token()->loc.fileName, parser_get_token()->loc.line + 1);
-}
-
-/**
  * Parses a block.
  * @param withBrackets if true, will read until a closed bracket, and if false, will read until an END_OF_FILE token.
  */
@@ -369,9 +414,7 @@ StatementBlock* parser_parse_block(const bool& withBrackets = true)
 
     if (withBrackets)
     {
-        if (parser_get_token()->type != _TokenType::OPEN_BRACKET)
-            CODE_ERROR("Expected an open bracket.", parser_get_token()->loc.fileName, parser_get_token()->loc.line + 1);
-
+        parser_assert_token_is(_TokenType::OPEN_BRACKET, "{");
         parser_move_next_token();
     }
 
@@ -393,9 +436,7 @@ StatementBlock* parser_parse_block(const bool& withBrackets = true)
 
     if (withBrackets)
     {
-        if (parser_get_token()->type != _TokenType::CLOSE_BRACKET)
-            CODE_ERROR("Expected a closed bracket.", parser_get_token()->loc.fileName, errorLine + 1);
-
+        parser_assert_token_is(_TokenType::CLOSE_BRACKET, "}");
         parser_move_next_token();
     }
 
@@ -414,9 +455,7 @@ StatementFunction* parser_parse_function(const bool& hasName)
     if (hasName)
     {
         parser_move_next_token();
-
-        if (parser_get_token()->type != _TokenType::SYMBOL)
-            CODE_ERROR("Expected a function name.", parser_get_token()->loc.fileName, parser_get_token()->loc.line + 1);
+        parser_assert_token_is(_TokenType::SYMBOL, "Function Name");
 
         function->name = parser_get_token()->value;
     }
@@ -426,10 +465,7 @@ StatementFunction* parser_parse_function(const bool& hasName)
     }
 
     parser_move_next_token();
-
-    if (parser_get_token()->type != _TokenType::OPEN_PARAN)
-        CODE_ERROR("Expected an open paranthesis.", parser_get_token()->loc.fileName, parser_get_token()->loc.line + 1);
-
+    parser_assert_token_is(_TokenType::OPEN_PARAN, "(");
     parser_move_next_token();
 
     // for errors
@@ -443,8 +479,7 @@ StatementFunction* parser_parse_function(const bool& hasName)
     {
         while (parser_get_token()->type != _TokenType::END_OF_FILE)
         {
-            if (parser_get_token()->type != _TokenType::SYMBOL)
-                CODE_ERROR("Expected a function parameter.", parser_get_token()->loc.fileName, parser_get_token()->loc.line + 1);
+            parser_assert_token_is(_TokenType::SYMBOL, "Function Parameter");
 
             function->params.push_back(new StatementSymbol(parser_get_token()->value));
             ++numberOfParams;
@@ -453,14 +488,11 @@ StatementFunction* parser_parse_function(const bool& hasName)
             if (parser_get_token()->type == _TokenType::CLOSE_PARAN)
                 break;
 
-            if (parser_get_token()->type != _TokenType::COMMA)
-                CODE_ERROR("Missing a comma to seperate function parameters.", parser_get_token()->loc.fileName, parser_get_token()->loc.line + 1);
-
+            parser_assert_token_is(_TokenType::COMMA, "Comma");
             parser_move_next_token();
         }
 
-        if (parser_get_token()->type != _TokenType::CLOSE_PARAN)
-            CODE_ERROR("Expected a closed paranthesis.", parser_get_token()->loc.fileName, errorLine + 1);
+        parser_assert_token_is(_TokenType::CLOSE_PARAN, ")", errorLine + 1);
     }
 
     parser_move_next_token_skip_eols();
@@ -497,8 +529,7 @@ StatementFunctionCall* parser_parse_function_call()
         {
             auto exp = parser_parse_exp();
 
-            if (exp->root == nullptr)
-                CODE_ERROR("Expected an argument.", parser_get_token()->loc.fileName, parser_get_token()->loc.line + 1);
+            parser_assert_stmt_is_not_null(exp, "Function Call Argument");
 
             functionCall->argExpressions.push_back(exp);
             ++numberOfExpressions;
@@ -506,14 +537,11 @@ StatementFunctionCall* parser_parse_function_call()
             if (parser_get_token()->type == _TokenType::CLOSE_PARAN)
                 break;
 
-            if (parser_get_token()->type != _TokenType::COMMA)
-                CODE_ERROR("Missing a comma to seperate function call arguments.", parser_get_token()->loc.fileName, parser_get_token()->loc.line + 1);
-            
+            parser_assert_token_is(_TokenType::COMMA, "Comma");
             parser_move_next_token();
         }
 
-        if (parser_get_token()->type != _TokenType::CLOSE_PARAN)
-            CODE_ERROR("Expected a closed parentheses.", parser_get_token()->loc.fileName, errorLine + 1);
+        parser_assert_token_is(_TokenType::CLOSE_PARAN, ")", errorLine + 1);
     }
 
     parser_move_next_token();
@@ -537,17 +565,13 @@ StatementFunctionCall* parser_parse_function_call()
 StatementStruct* parser_parse_struct()
 {
     parser_move_next_token();
-
-    if (parser_get_token()->type != _TokenType::SYMBOL)
-        CODE_ERROR("Expected a name for the structure.", parser_get_token()->loc.fileName, parser_get_token()->loc.line + 1);
+    parser_assert_token_is(_TokenType::SYMBOL, "Structure Name");
 
     auto _struct = new StatementStruct(parser_get_token()->value);
 
     // move to the open bracket
     parser_move_next_token_skip_eols();
-
-    if (parser_get_token()->type != _TokenType::OPEN_BRACKET)
-        CODE_ERROR("Expected an open bracket.", parser_get_token()->loc.fileName, parser_get_token()->loc.line + 1);
+    parser_assert_token_is(_TokenType::OPEN_BRACKET, "{");
 
     // move to the first statement
     parser_move_next_token_skip_eols();
@@ -569,7 +593,7 @@ StatementStruct* parser_parse_struct()
         }
         else 
         {
-            CODE_ERROR("Invalid statement in structure.", parser_get_token()->loc.fileName, parser_get_token()->loc.line + 1);
+            parser_raise_error_invalid_stmt("Structure");
         }
 
         if (parser_get_token()->type == _TokenType::CLOSE_BRACKET)
@@ -579,9 +603,7 @@ StatementStruct* parser_parse_struct()
         parser_move_next_token_skip_eols();
     }
 
-    if (parser_get_token()->type != _TokenType::CLOSE_BRACKET)
-        CODE_ERROR("Missing closing bracket on line.", parser_get_token()->loc.fileName, errorLine + 1);
-
+    parser_assert_token_is(_TokenType::CLOSE_BRACKET, "}", errorLine + 1);
     parser_move_next_token();
 
     return _struct;
@@ -615,8 +637,7 @@ StatementIf* parser_parse_if()
 
     auto condition = parser_parse_exp();
 
-    if (condition->root == nullptr)
-        CODE_ERROR("Expected a condition.", parser_get_token()->loc.fileName, parser_get_token()->loc.line + 1);
+    parser_assert_stmt_is_not_null(condition, "Condition");
 
     if (parser_get_token()->type == _TokenType::END_OF_LINE)
         parser_move_next_token_skip_eols();
@@ -664,11 +685,10 @@ Statement* parser_parse_while()
 
     auto condition = parser_parse_exp();
 
+    parser_assert_stmt_is_not_null(condition, "Condition");
+
     if (parser_get_token()->type == _TokenType::END_OF_LINE)
         parser_move_next_token_skip_eols();
-
-    if (parser_get_token()->type != _TokenType::OPEN_BRACKET)
-        CODE_ERROR("Missing an open bracket.", parser_get_token()->loc.fileName, parser_get_token()->loc.line + 1);
 
     return new StatementWhile(condition, parser_parse_block());
 }
@@ -679,9 +699,7 @@ StatementBlockNamespace* parser_parse_namespace(const bool& topLevel)
         CODE_ERROR("Namespaces cannot be nested.", parser_get_token()->loc.fileName, parser_get_token()->loc.line + 1);
     
     parser_move_next_token();
-
-    if (parser_get_token()->type != _TokenType::SYMBOL)
-        CODE_ERROR("Expected a name for the structure.", parser_get_token()->loc.fileName, parser_get_token()->loc.line + 1);
+    parser_assert_token_is(_TokenType::SYMBOL, "Structure Name");
 
     auto _namespace = new StatementBlockNamespace(parser_get_token()->value);
 
@@ -753,8 +771,19 @@ Statement* parser_parse_a_single_statement(const bool& topLevel)
     {
         return parser_parse_namespace(topLevel);
     }
+    // WHITESPACE
+    else if (parser_get_token()->type == _TokenType::END_OF_LINE || 
+        parser_get_token()->type == _TokenType::END_OF_FILE)
+    {
+        return nullptr;
+    }
+    // TODO: figure out a better way to not throw if in block and close bracket is encountered
+    else if (parser_get_token()->type == _TokenType::CLOSE_BRACKET)
+    {
+        return nullptr;
+    }
 
-    return nullptr;
+    parser_raise_error_unknown_stmt();
 }
 
 #pragma endregion

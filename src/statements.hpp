@@ -34,9 +34,9 @@ struct Statement
 protected:
     void print_type(std::string padding)
     {
-        std::cout << padding << statement_type_name(type) << std::endl;
-        std::cout << padding << loc.fileName << std::endl;
-        std::cout << padding << loc.line << std::endl;
+        std::cout << padding << statement_type_name(type) << " [";
+        std::cout << loc.fileName << ":";
+        std::cout << loc.line + 1 << "]" << std::endl;
     }
 };
 
