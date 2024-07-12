@@ -121,7 +121,7 @@ void parser_raise_error_unknown_stmt()
 
 StatementExpression* parser_parse_exp();
 StatementFunctionCall* parser_parse_function_call();
-StatementFunction* parser_parse_function(const bool& hasName = true);
+StatementFunction* parser_parse_function(const bool& hasName = true, const bool& isFunctionInStruct = false);
 
 Statement* parser_parse_exp_term()
 {
@@ -133,7 +133,8 @@ Statement* parser_parse_exp_term()
         result = parser_parse_function_call();
         return result;
     }
-    if (parser_get_token()->type == _TokenType::NUMBER)
+    // NUMBER
+    else if (parser_get_token()->type == _TokenType::NUMBER)
     {
         bool isDecimal = false;
         for (char c : parser_get_token()->value)
@@ -147,10 +148,12 @@ Statement* parser_parse_exp_term()
             new StatementConstant(DataType::FLOAT, parser_get_token()->value) :
             new StatementConstant(DataType::INT, parser_get_token()->value);
     }
+    // STRING
     else if (parser_get_token()->type == _TokenType::STRING)
     {
         result = new StatementConstant(DataType::STRING, parser_get_token()->value);
     }
+    // SYMBOL
     else if (parser_get_token()->type == _TokenType::SYMBOL)
     {
         result = new StatementSymbol(parser_get_token()->value);
@@ -448,14 +451,32 @@ StatementBlock* parser_parse_block(const bool& withBrackets = true)
  * 
  * }-EOL
  */
-StatementFunction* parser_parse_function(const bool& hasName)
+StatementFunction* parser_parse_function(const bool& hasName, const bool& isFunctionInStruct)
 {
     auto function = new StatementFunction(EMPTY_STRING);
 
     if (hasName)
     {
         parser_move_next_token();
-        parser_assert_token_is(_TokenType::SYMBOL, "Function Name");
+
+        if (isFunctionInStruct &&
+            (parser_get_token()->type == _TokenType::PLUS ||
+            parser_get_token()->type == _TokenType::MINUS ||
+            parser_get_token()->type == _TokenType::MULTIPLY ||
+            parser_get_token()->type == _TokenType::DIVIDE ||
+            parser_get_token()->type == _TokenType::EQUALS ||
+            parser_get_token()->type == _TokenType::NOT_EQUALS ||
+            parser_get_token()->type == _TokenType::GREATER_THAN_E ||
+            parser_get_token()->type == _TokenType::LESS_THAN_E ||
+            parser_get_token()->type == _TokenType::GREATER_THAN ||
+            parser_get_token()->type == _TokenType::LESS_THAN))
+        {
+            // function is an operator function
+        }
+        else
+        {
+            parser_assert_token_is(_TokenType::SYMBOL, "Function Name");
+        }
 
         function->name = parser_get_token()->value;
     }
@@ -589,7 +610,7 @@ StatementStruct* parser_parse_struct()
         // FUNCTION
         else if (parser_get_token()->type == _TokenType::FUNCITON)
         {
-            _struct->functions.push_back(parser_parse_function());
+            _struct->functions.push_back(parser_parse_function(true, true));
         }
         else 
         {
@@ -746,7 +767,9 @@ Statement* parser_parse_a_single_statement(const bool& topLevel)
         parser_get_token()->type == _TokenType::STRING ||
         parser_get_token()->type == _TokenType::SYMBOL ||
         parser_get_token()->type == _TokenType::MINUS ||
-        parser_get_token()->type == _TokenType::OPEN_PARAN)
+        parser_get_token()->type == _TokenType::OPEN_PARAN ||
+        parser_get_token()->type == _TokenType::_TRUE ||
+        parser_get_token()->type == _TokenType::_FALSE)
     {
         return parser_parse_exp();
     }
@@ -784,6 +807,7 @@ Statement* parser_parse_a_single_statement(const bool& topLevel)
     }
 
     parser_raise_error_unknown_stmt();
+    return nullptr;
 }
 
 #pragma endregion

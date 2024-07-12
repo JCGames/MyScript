@@ -46,9 +46,9 @@ void lexer_print_tokens(std::vector<Token*>& tokens)
         std::cout << "Type: " << token_type_name(token->type) << " Value: |" << token->value << "| Line: " << token->loc.line + 1 << std::endl;
 }
 
-std::vector<Token*> lexer_get_tokens(std::string fileName)
+std::vector<Token*> lexer_get_tokens(const std::string& filePath, const std::string& fileName)
 {
-    std::ifstream ifs(fileName);
+    std::ifstream ifs(filePath);
 
     if (!ifs.is_open())
         LOG_ERROR("Was unable to open file with name " + fileName + ".");

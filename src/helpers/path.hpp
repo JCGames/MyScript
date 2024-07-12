@@ -73,6 +73,14 @@ public:
         return result;
     }
 
+    std::string get_file_name()
+    {
+        if (nodes.size() > 0)
+            return nodes[0];
+        
+        return "";
+    }
+
     /**
      * Returns all of the files in the paths directory.
      */

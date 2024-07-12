@@ -4,6 +4,7 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include <map>
 
 #include "enums/statement-type.hpp"
 #include "enums/operator-type.hpp"
@@ -34,37 +35,21 @@ struct Statement
 protected:
     void print_type(std::string padding)
     {
-        std::cout << padding << statement_type_name(type) << " [";
+        std::cout << padding << "\x1B[34m" << statement_type_name(type) << "\033[0m [";
         std::cout << loc.fileName << ":";
         std::cout << loc.line + 1 << "]" << std::endl;
     }
 };
 
-struct SyntaxTree
+struct DefinedSymbol
 {
-    std::vector<std::string> files;
-    std::vector<Statement*> statements;
+    std::string symbol;
+    Statement* stmt;
 
-    ~SyntaxTree()
+    DefinedSymbol(std::string symbol, Statement* stmt)
     {
-        for (auto& stmt : statements)
-        {
-            if (stmt != nullptr)
-            {
-                stmt->_delete();
-                delete stmt;
-            }
-        }
-    }
-
-    void print()
-    {
-        std::cout << "Syntax Tree: [" << std::endl;
-
-        for (auto& stmt : statements)
-            stmt->print("\t");
-
-        std::cout << "]" << std::endl;
+        this->symbol = symbol;
+        this->stmt = stmt;
     }
 };
 
@@ -79,6 +64,7 @@ struct StatementExpression : Statement
 
     void _delete() override
     {
+        root->_delete();
         delete root;
     }
 
@@ -104,6 +90,8 @@ struct StatementBinaryOperator : Statement
 
     void _delete() override
     {
+        left->_delete();
+        right->_delete();
         delete left;
         delete right;
     }
@@ -134,6 +122,7 @@ struct StatementUnaryOperator : Statement
 
     void _delete() override
     {
+        root->_delete();
         delete root;
     }
 
@@ -185,6 +174,8 @@ struct StatementBlock : Statement
 {
     std::vector<Statement*> statements;
 
+    std::vector<DefinedSymbol> definedSymbols;
+
     StatementBlock() : Statement(StatementType::BLOCK) { }
 
     StatementBlock(bool isNamespace) : Statement(StatementType::NAMESPACE) { }
@@ -192,12 +183,26 @@ struct StatementBlock : Statement
     void _delete() override
     {
         for (auto& stmt : statements)
+        {
+            stmt->_delete();
             delete stmt;
+        }
     }
 
     void print(std::string padding) override
     {
         print_type(padding);
+
+        if (definedSymbols.size() > 0)
+        {
+            std::cout << padding << "Defined Symbols: {" << std::endl;
+
+            for (auto& definedSymbol : definedSymbols)
+                std::cout << padding << '\t' << definedSymbol.symbol << std::endl;
+
+            std::cout << padding << "}" << std::endl;
+        }
+
         std::cout << padding << "[" << std::endl;
 
         for (auto stmt : statements)
@@ -220,7 +225,17 @@ struct StatementBlockNamespace : StatementBlock
     {
         print_type(padding);
 
-        std::cout << padding << name << " ";
+        if (definedSymbols.size() > 0)
+        {
+            std::cout << padding << "Defined Symbols: {" << std::endl;
+
+            for (auto& definedSymbol : definedSymbols)
+                std::cout << padding << '\t' << definedSymbol.symbol << std::endl;
+
+            std::cout << padding << "}" << std::endl;
+        }
+
+        std::cout << padding << "Name: " << name << " ";
         std::cout << "[" << std::endl;
 
         for (auto stmt : statements)
@@ -244,8 +259,12 @@ struct StatementFunction : Statement
     void _delete() override
     {        
         for (auto& stmt : params)
+        {
+            stmt->_delete();
             delete stmt;
+        }
         
+        body->_delete();
         delete body;
     }
 
@@ -278,6 +297,7 @@ struct StatementReturn : Statement
 
     void _delete() override
     {
+        expression->_delete();
         delete expression;
     }
 
@@ -301,7 +321,10 @@ struct StatementFunctionCall : Statement
     void _delete() override
     {
         for (auto& stmt : argExpressions)
+        {
+            stmt->_delete();
             delete stmt;
+        }
     }
 
     void print(std::string padding) override
@@ -331,11 +354,17 @@ struct StatementStruct : Statement
 
     void _delete() override
     {
-        for (auto& stmt : variables)
+        for (auto& stmt : variables) 
+        {
+            stmt->_delete();
             delete stmt;
+        }
 
         for (auto& stmt : functions)
+        {
+            stmt->_delete();
             delete stmt;
+        }
     }
 
     void print(std::string padding) override
@@ -369,6 +398,7 @@ struct StatementElse : Statement
 
     void _delete() override
     {
+        block->_delete();
         delete this->block;
     }
 
@@ -396,14 +426,23 @@ struct StatementIf : Statement
 
     void _delete() override
     {
+        condition->_delete();
+        block->_delete();
+
         delete this->condition;
         delete this->block;
 
-        if (this->_elseIf != nullptr)
+        if (this->_elseIf != nullptr) 
+        {
+            _elseIf->_delete();
             delete this->_elseIf;
+        }
 
         if (this->_else != nullptr)
+        {
+            _else->_delete();
             delete this->_else;
+        }
     }
 
     void print(std::string padding) override
@@ -439,6 +478,8 @@ struct StatementWhile : Statement
 
     void _delete() override
     {
+        condition->_delete();
+        block->_delete();
         delete this->condition;
         delete this->block;
     }
@@ -454,6 +495,30 @@ struct StatementWhile : Statement
         std::cout << padding << "]" << std::endl;
 
         block->print(padding + '\t');
+    }
+};
+
+struct SyntaxTree
+{
+    std::vector<Statement*> statements;
+
+    ~SyntaxTree()
+    {
+        for (auto& stmt : statements) 
+        {
+            stmt->_delete();
+            delete stmt;
+        }
+    }
+
+    void print()
+    {
+        std::cout << "Syntax Tree: [" << std::endl;
+
+        for (auto& stmt : statements)
+            stmt->print("\t");
+
+        std::cout << "]" << std::endl;
     }
 };
 
