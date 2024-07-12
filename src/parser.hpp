@@ -27,7 +27,10 @@ std::vector<Token*> parserTokens;
 void parser_move_next_token()
 {
     if (parserPosition + 1 < parserTokens.size())
+    {
         ++parserPosition;
+        statementLocationMetadata = parserTokens[parserPosition]->loc;
+    }
 }
 
 /// @brief Gets the token at the current parserPosition.
@@ -106,14 +109,14 @@ Statement* parser_parse_exp_term()
     // INNER EXPRESSIONS
     else if (parser_get_token()->type == _TokenType::OPEN_PARAN)
     {
-        unsigned int errorLine = parser_get_token()->line;
+        unsigned int errorLine = parser_get_token()->loc.line;
 
         parser_move_next_token();
 
         result = parser_parse_exp();
 
         if (parser_get_token()->type != _TokenType::CLOSE_PARAN)
-            CODE_ERROR("Expected a close paranthesis.", lexerFiles[lexerFIndex], errorLine + 1);
+            CODE_ERROR("Expected a close paranthesis.", parser_get_token()->loc.fileName, errorLine + 1);
     }
     else if (parser_get_token()->type == _TokenType::_NULL)
     {
@@ -350,7 +353,7 @@ Statement* parser_parse_a_single_statement(const bool& topLevel = false);
 void parser_assert_end_of_statement()
 {
     if (parser_get_token()->type != _TokenType::END_OF_LINE && parser_get_token()->type != _TokenType::END_OF_FILE)
-        CODE_ERROR("Expected the end of a statment but got [" + parser_get_token()->value + "].", lexerFiles[parser_get_token()->fIndex], parser_get_token()->line + 1);
+        CODE_ERROR("Expected the end of a statment but got [" + parser_get_token()->value + "].", parser_get_token()->loc.fileName, parser_get_token()->loc.line + 1);
 }
 
 /**
@@ -362,12 +365,12 @@ StatementBlock* parser_parse_block(const bool& withBrackets = true)
     auto block = new StatementBlock();
 
     // for errors
-    auto errorLine = parser_get_token()->line;
+    auto errorLine = parser_get_token()->loc.line;
 
     if (withBrackets)
     {
         if (parser_get_token()->type != _TokenType::OPEN_BRACKET)
-            CODE_ERROR("Expected an open bracket.", lexerFiles[parser_get_token()->fIndex], parser_get_token()->line + 1);
+            CODE_ERROR("Expected an open bracket.", parser_get_token()->loc.fileName, parser_get_token()->loc.line + 1);
 
         parser_move_next_token();
     }
@@ -391,7 +394,7 @@ StatementBlock* parser_parse_block(const bool& withBrackets = true)
     if (withBrackets)
     {
         if (parser_get_token()->type != _TokenType::CLOSE_BRACKET)
-            CODE_ERROR("Expected a closed bracket.", lexerFiles[parser_get_token()->fIndex], errorLine + 1);
+            CODE_ERROR("Expected a closed bracket.", parser_get_token()->loc.fileName, errorLine + 1);
 
         parser_move_next_token();
     }
@@ -413,7 +416,7 @@ StatementFunction* parser_parse_function(const bool& hasName)
         parser_move_next_token();
 
         if (parser_get_token()->type != _TokenType::SYMBOL)
-            CODE_ERROR("Expected a function name.", lexerFiles[parser_get_token()->fIndex], parser_get_token()->line + 1);
+            CODE_ERROR("Expected a function name.", parser_get_token()->loc.fileName, parser_get_token()->loc.line + 1);
 
         function->name = parser_get_token()->value;
     }
@@ -425,12 +428,12 @@ StatementFunction* parser_parse_function(const bool& hasName)
     parser_move_next_token();
 
     if (parser_get_token()->type != _TokenType::OPEN_PARAN)
-        CODE_ERROR("Expected an open paranthesis.", lexerFiles[parser_get_token()->fIndex], parser_get_token()->line + 1);
+        CODE_ERROR("Expected an open paranthesis.", parser_get_token()->loc.fileName, parser_get_token()->loc.line + 1);
 
     parser_move_next_token();
 
     // for errors
-    unsigned int errorLine = parser_get_token()->line;
+    unsigned int errorLine = parser_get_token()->loc.line;
 
     int numberOfParams = 0;
 
@@ -441,7 +444,7 @@ StatementFunction* parser_parse_function(const bool& hasName)
         while (parser_get_token()->type != _TokenType::END_OF_FILE)
         {
             if (parser_get_token()->type != _TokenType::SYMBOL)
-                CODE_ERROR("Expected a function parameter.", lexerFiles[parser_get_token()->fIndex], parser_get_token()->line + 1);
+                CODE_ERROR("Expected a function parameter.", parser_get_token()->loc.fileName, parser_get_token()->loc.line + 1);
 
             function->params.push_back(new StatementSymbol(parser_get_token()->value));
             ++numberOfParams;
@@ -451,13 +454,13 @@ StatementFunction* parser_parse_function(const bool& hasName)
                 break;
 
             if (parser_get_token()->type != _TokenType::COMMA)
-                CODE_ERROR("Missing a comma to seperate function parameters.", lexerFiles[parser_get_token()->fIndex], parser_get_token()->line + 1);
+                CODE_ERROR("Missing a comma to seperate function parameters.", parser_get_token()->loc.fileName, parser_get_token()->loc.line + 1);
 
             parser_move_next_token();
         }
 
         if (parser_get_token()->type != _TokenType::CLOSE_PARAN)
-            CODE_ERROR("Expected a closed paranthesis.", lexerFiles[parser_get_token()->fIndex], errorLine + 1);
+            CODE_ERROR("Expected a closed paranthesis.", parser_get_token()->loc.fileName, errorLine + 1);
     }
 
     parser_move_next_token_skip_eols();
@@ -482,7 +485,7 @@ StatementFunctionCall* parser_parse_function_call()
     parser_move_next_token(); // skip open parentheses
 
     // for errors
-    unsigned int errorLine = parser_get_token()->line;
+    unsigned int errorLine = parser_get_token()->loc.line;
 
     int numberOfExpressions = 0;
 
@@ -495,7 +498,7 @@ StatementFunctionCall* parser_parse_function_call()
             auto exp = parser_parse_exp();
 
             if (exp->root == nullptr)
-                CODE_ERROR("Expected an argument.", lexerFiles[parser_get_token()->fIndex], parser_get_token()->line + 1);
+                CODE_ERROR("Expected an argument.", parser_get_token()->loc.fileName, parser_get_token()->loc.line + 1);
 
             functionCall->argExpressions.push_back(exp);
             ++numberOfExpressions;
@@ -504,13 +507,13 @@ StatementFunctionCall* parser_parse_function_call()
                 break;
 
             if (parser_get_token()->type != _TokenType::COMMA)
-                CODE_ERROR("Missing a comma to seperate function call arguments.", lexerFiles[parser_get_token()->fIndex], parser_get_token()->line + 1);
+                CODE_ERROR("Missing a comma to seperate function call arguments.", parser_get_token()->loc.fileName, parser_get_token()->loc.line + 1);
             
             parser_move_next_token();
         }
 
         if (parser_get_token()->type != _TokenType::CLOSE_PARAN)
-            CODE_ERROR("Expected a closed parentheses.", lexerFiles[parser_get_token()->fIndex], errorLine + 1);
+            CODE_ERROR("Expected a closed parentheses.", parser_get_token()->loc.fileName, errorLine + 1);
     }
 
     parser_move_next_token();
@@ -536,7 +539,7 @@ StatementStruct* parser_parse_struct()
     parser_move_next_token();
 
     if (parser_get_token()->type != _TokenType::SYMBOL)
-        CODE_ERROR("Expected a name for the structure.", lexerFiles[parser_get_token()->fIndex], parser_get_token()->line + 1);
+        CODE_ERROR("Expected a name for the structure.", parser_get_token()->loc.fileName, parser_get_token()->loc.line + 1);
 
     auto _struct = new StatementStruct(parser_get_token()->value);
 
@@ -544,12 +547,12 @@ StatementStruct* parser_parse_struct()
     parser_move_next_token_skip_eols();
 
     if (parser_get_token()->type != _TokenType::OPEN_BRACKET)
-        CODE_ERROR("Expected an open bracket.", lexerFiles[parser_get_token()->fIndex], parser_get_token()->line + 1);
+        CODE_ERROR("Expected an open bracket.", parser_get_token()->loc.fileName, parser_get_token()->loc.line + 1);
 
     // move to the first statement
     parser_move_next_token_skip_eols();
 
-    unsigned int errorLine = parser_get_token()->line;
+    unsigned int errorLine = parser_get_token()->loc.line;
 
     // parse variables and functions in structure
     while (parser_get_token()->type != _TokenType::CLOSE_BRACKET && parser_get_token()->type != _TokenType::END_OF_FILE)
@@ -566,7 +569,7 @@ StatementStruct* parser_parse_struct()
         }
         else 
         {
-            CODE_ERROR("Invalid statement in structure.", lexerFiles[parser_get_token()->fIndex], parser_get_token()->line + 1);
+            CODE_ERROR("Invalid statement in structure.", parser_get_token()->loc.fileName, parser_get_token()->loc.line + 1);
         }
 
         if (parser_get_token()->type == _TokenType::CLOSE_BRACKET)
@@ -577,7 +580,7 @@ StatementStruct* parser_parse_struct()
     }
 
     if (parser_get_token()->type != _TokenType::CLOSE_BRACKET)
-        CODE_ERROR("Missing closing bracket on line.", lexerFiles[parser_get_token()->fIndex], errorLine + 1);
+        CODE_ERROR("Missing closing bracket on line.", parser_get_token()->loc.fileName, errorLine + 1);
 
     parser_move_next_token();
 
@@ -613,7 +616,7 @@ StatementIf* parser_parse_if()
     auto condition = parser_parse_exp();
 
     if (condition->root == nullptr)
-        CODE_ERROR("Expected a condition.", lexerFiles[parser_get_token()->fIndex], parser_get_token()->line + 1);
+        CODE_ERROR("Expected a condition.", parser_get_token()->loc.fileName, parser_get_token()->loc.line + 1);
 
     if (parser_get_token()->type == _TokenType::END_OF_LINE)
         parser_move_next_token_skip_eols();
@@ -665,7 +668,7 @@ Statement* parser_parse_while()
         parser_move_next_token_skip_eols();
 
     if (parser_get_token()->type != _TokenType::OPEN_BRACKET)
-        CODE_ERROR("Missing an open bracket.", lexerFiles[parser_get_token()->fIndex], parser_get_token()->line + 1);
+        CODE_ERROR("Missing an open bracket.", parser_get_token()->loc.fileName, parser_get_token()->loc.line + 1);
 
     return new StatementWhile(condition, parser_parse_block());
 }
@@ -673,12 +676,12 @@ Statement* parser_parse_while()
 StatementBlockNamespace* parser_parse_namespace(const bool& topLevel)
 {
     if (!topLevel)
-        CODE_ERROR("Namespaces cannot be nested.", lexerFiles[parser_get_token()->fIndex], parser_get_token()->line + 1);
+        CODE_ERROR("Namespaces cannot be nested.", parser_get_token()->loc.fileName, parser_get_token()->loc.line + 1);
     
     parser_move_next_token();
 
     if (parser_get_token()->type != _TokenType::SYMBOL)
-        CODE_ERROR("Expected a name for the structure.", lexerFiles[parser_get_token()->fIndex], parser_get_token()->line + 1);
+        CODE_ERROR("Expected a name for the structure.", parser_get_token()->loc.fileName, parser_get_token()->loc.line + 1);
 
     auto _namespace = new StatementBlockNamespace(parser_get_token()->value);
 
@@ -763,6 +766,7 @@ void parser_get_syntax_tree(SyntaxTree& tree, const std::vector<Token*>& tokens)
 {
     parserPosition = 0;
     parserTokens = tokens;
+    statementLocationMetadata = parser_get_token()->loc;
 
     // read until the end of the file
     while (parser_get_token()->type != _TokenType::END_OF_FILE)

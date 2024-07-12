@@ -9,13 +9,19 @@
 #include "enums/operator-type.hpp"
 #include "enums/data-type.hpp"
 
+#include "location-metadata.hpp"
+
+static LocationMetadata statementLocationMetadata;
+
 struct Statement
 {
     StatementType type;
+    LocationMetadata loc;
 
     Statement(const StatementType& type)
     {
         this->type = type;
+        this->loc = statementLocationMetadata;
     }
 
     virtual void print(std::string padding)
@@ -29,6 +35,8 @@ protected:
     void print_type(std::string padding)
     {
         std::cout << padding << statement_type_name(type) << std::endl;
+        std::cout << padding << loc.fileName << std::endl;
+        std::cout << padding << loc.line << std::endl;
     }
 };
 

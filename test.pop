@@ -1,15 +1,1 @@
-namespace Iter
-{
-    fn For(initial, N, action)
-    {
-        i -> initial
-        while i < N {
-            i -> i + 1
-            action(i)
-        }
-    }
-}
-
-Iter.For(0, 100, fn(i) {
-    println(i)
-})
+println("Hello, world!")
