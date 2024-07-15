@@ -12,7 +12,7 @@ enum class _TokenType
     SYMBOL,
     STRING,
     NUMBER,
-    FUNCITON,
+    FUNCTION,
     RETURN,
     STRUCT,
     IF,
@@ -57,7 +57,7 @@ std::string token_type_name(_TokenType type)
         case _TokenType::SYMBOL: return "SYMBOL";
         case _TokenType::STRING: return "STRING";
         case _TokenType::NUMBER: return "NUMBER";
-        case _TokenType::FUNCITON: return "FUNCITON";
+        case _TokenType::FUNCTION: return "FUNCTION";
         case _TokenType::RETURN: return "RETURN";
         case _TokenType::STRUCT: return "STRUCT";
         case _TokenType::IF: return "IF";

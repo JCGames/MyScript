@@ -1,1 +1,24 @@
-1 - 1
+namespace Standard
+
+struct Person {
+    name -> null
+    age -> null
+    height -> null
+}
+
+person -> Person
+person.name -> "Bob"
+person.age -> 22
+person.height -> 6.5
+
+fn isOld(person)
+{
+    if person.age > 60
+    {
+        return true
+    }
+
+    return false
+}
+
+isOld(person)

@@ -5,12 +5,16 @@
 #include <string>
 #include <vector>
 #include <map>
+#include <memory>
 
 #include "enums/statement-type.hpp"
 #include "enums/operator-type.hpp"
 #include "enums/data-type.hpp"
 
 #include "location-metadata.hpp"
+
+#define U(type) std::unique_ptr<type>
+#define U_INIT(type, value) std::unique_ptr<type>(value)
 
 static LocationMetadata statementLocationMetadata;
 
@@ -30,8 +34,6 @@ struct Statement
         print_type(padding);
     }
 
-    virtual void _delete() { }
-
 protected:
     void print_type(std::string padding)
     {
@@ -41,32 +43,14 @@ protected:
     }
 };
 
-struct DefinedSymbol
-{
-    std::string symbol;
-    Statement* stmt;
-
-    DefinedSymbol(std::string symbol, Statement* stmt)
-    {
-        this->symbol = symbol;
-        this->stmt = stmt;
-    }
-};
-
 struct StatementExpression : Statement
 {
-    Statement* root;
+    U(Statement) root;
 
     StatementExpression(Statement* root) : Statement(StatementType::EXPRESSION)
     {
-        this->root = root;
+        this->root = U_INIT(Statement, root);
     };
-
-    void _delete() override
-    {
-        root->_delete();
-        delete root;
-    }
 
     void print(std::string padding) override
     {
@@ -78,22 +62,14 @@ struct StatementExpression : Statement
 struct StatementBinaryOperator : Statement
 {
     OperatorType operatorType;
-    Statement* left;
-    Statement* right;
+    U(Statement) left;
+    U(Statement) right;
 
     StatementBinaryOperator(const OperatorType& operatorType, Statement* left, Statement* right) : Statement(StatementType::BINARY_OPERATOR)
     {
         this->operatorType = operatorType;
-        this->left = left;
-        this->right = right;
-    }
-
-    void _delete() override
-    {
-        left->_delete();
-        right->_delete();
-        delete left;
-        delete right;
+        this->left = U_INIT(Statement, left);
+        this->right = U_INIT(Statement, right);
     }
 
     void print(std::string padding) override
@@ -112,18 +88,12 @@ struct StatementBinaryOperator : Statement
 struct StatementUnaryOperator : Statement
 {
     OperatorType operatorType;
-    Statement* root;
+    U(Statement) root;
 
     StatementUnaryOperator(const OperatorType& operatorType, Statement* root) : Statement(StatementType::UNARY_OPERATOR)
     {
         this->operatorType = operatorType;
-        this->root = root;
-    }
-
-    void _delete() override
-    {
-        root->_delete();
-        delete root;
+        this->root = U_INIT(Statement, root);
     }
 
     void print(std::string padding) override
@@ -172,40 +142,19 @@ struct StatementSymbol : Statement
 
 struct StatementBlock : Statement
 {
-    std::vector<Statement*> statements;
-
-    std::vector<DefinedSymbol> definedSymbols;
+    std::vector<U(Statement)> statements;
 
     StatementBlock() : Statement(StatementType::BLOCK) { }
 
     StatementBlock(bool isNamespace) : Statement(StatementType::NAMESPACE) { }
 
-    void _delete() override
-    {
-        for (auto& stmt : statements)
-        {
-            stmt->_delete();
-            delete stmt;
-        }
-    }
-
     void print(std::string padding) override
     {
         print_type(padding);
 
-        if (definedSymbols.size() > 0)
-        {
-            std::cout << padding << "Defined Symbols: {" << std::endl;
-
-            for (auto& definedSymbol : definedSymbols)
-                std::cout << padding << '\t' << definedSymbol.symbol << std::endl;
-
-            std::cout << padding << "}" << std::endl;
-        }
-
         std::cout << padding << "[" << std::endl;
 
-        for (auto stmt : statements)
+        for (auto& stmt : statements)
             stmt->print(padding + '\t');
 
         std::cout << padding << "]" << std::endl;
@@ -225,20 +174,10 @@ struct StatementBlockNamespace : StatementBlock
     {
         print_type(padding);
 
-        if (definedSymbols.size() > 0)
-        {
-            std::cout << padding << "Defined Symbols: {" << std::endl;
-
-            for (auto& definedSymbol : definedSymbols)
-                std::cout << padding << '\t' << definedSymbol.symbol << std::endl;
-
-            std::cout << padding << "}" << std::endl;
-        }
-
         std::cout << padding << "Name: " << name << " ";
         std::cout << "[" << std::endl;
 
-        for (auto stmt : statements)
+        for (auto& stmt : statements)
             stmt->print(padding + '\t');
 
         std::cout << padding << "]" << std::endl;
@@ -248,24 +187,12 @@ struct StatementBlockNamespace : StatementBlock
 struct StatementFunction : Statement
 {
     std::string name;
-    std::vector<StatementSymbol*> params;
-    StatementBlock* body;
+    std::vector<U(StatementSymbol)> params;
+    U(StatementBlock) body;
 
     StatementFunction(std::string name) : Statement(StatementType::FUNCTION) 
     {
         this->name = name;
-    }
-
-    void _delete() override
-    {        
-        for (auto& stmt : params)
-        {
-            stmt->_delete();
-            delete stmt;
-        }
-        
-        body->_delete();
-        delete body;
     }
 
     void print(std::string padding) override
@@ -288,17 +215,11 @@ struct StatementFunction : Statement
 
 struct StatementReturn : Statement
 {
-    StatementExpression* expression;
+    U(StatementExpression) expression;
 
     StatementReturn(StatementExpression* expression) : Statement(StatementType::RETURN)
     {
-        this->expression = expression;
-    }
-
-    void _delete() override
-    {
-        expression->_delete();
-        delete expression;
+        this->expression = U_INIT(StatementExpression, expression);
     }
 
     void print(std::string padding) override
@@ -311,20 +232,11 @@ struct StatementReturn : Statement
 struct StatementFunctionCall : Statement
 {
     std::string name;
-    std::vector<StatementExpression*> argExpressions;
+    std::vector<U(StatementExpression)> args;
 
     StatementFunctionCall(std::string name) : Statement(StatementType::FUNCTION_CALL)
     {
         this->name = name;
-    }
-
-    void _delete() override
-    {
-        for (auto& stmt : argExpressions)
-        {
-            stmt->_delete();
-            delete stmt;
-        }
     }
 
     void print(std::string padding) override
@@ -334,7 +246,7 @@ struct StatementFunctionCall : Statement
         std::cout << padding << "Name: " << this->name << std::endl;
         std::cout << padding << "Arg Expressions: [" << std::endl;
 
-        for (auto& stmt : argExpressions)
+        for (auto& stmt : args)
             stmt->print(padding + '\t');
 
         std::cout << padding << "]" << std::endl; 
@@ -344,27 +256,12 @@ struct StatementFunctionCall : Statement
 struct StatementStruct : Statement
 {
     std::string name;
-    std::vector<StatementExpression*> variables;
-    std::vector<StatementFunction*> functions;
+    std::vector<U(StatementExpression)> variables;
+    std::vector<U(StatementFunction)> functions;
 
     StatementStruct(std::string name) : Statement(StatementType::STRUCT)
     {
         this->name = name;
-    }
-
-    void _delete() override
-    {
-        for (auto& stmt : variables) 
-        {
-            stmt->_delete();
-            delete stmt;
-        }
-
-        for (auto& stmt : functions)
-        {
-            stmt->_delete();
-            delete stmt;
-        }
     }
 
     void print(std::string padding) override
@@ -389,17 +286,11 @@ struct StatementStruct : Statement
 
 struct StatementElse : Statement
 {
-    StatementBlock* block;
+    U(StatementBlock) block;
 
     StatementElse(StatementBlock* block) : Statement(StatementType::ELSE)
     {
-        this->block = block;
-    }
-
-    void _delete() override
-    {
-        block->_delete();
-        delete this->block;
+        this->block = U_INIT(StatementBlock, block);
     }
 
     void print(std::string padding) override
@@ -411,38 +302,17 @@ struct StatementElse : Statement
 
 struct StatementIf : Statement
 {
-    StatementExpression* condition;
-    StatementBlock* block;
-    StatementIf* _elseIf;
-    StatementElse* _else;
+    U(StatementExpression) condition;
+    U(StatementBlock) block;
+    U(StatementIf) _elseIf;
+    U(StatementElse) _else;
 
     StatementIf(StatementExpression* condition, StatementBlock* block, StatementIf* _elseIf, StatementElse* _else) : Statement(StatementType::IF)
     {
-        this->condition = condition;
-        this->block = block;
-        this->_elseIf = _elseIf;
-        this->_else = _else;
-    }
-
-    void _delete() override
-    {
-        condition->_delete();
-        block->_delete();
-
-        delete this->condition;
-        delete this->block;
-
-        if (this->_elseIf != nullptr) 
-        {
-            _elseIf->_delete();
-            delete this->_elseIf;
-        }
-
-        if (this->_else != nullptr)
-        {
-            _else->_delete();
-            delete this->_else;
-        }
+        this->condition = U_INIT(StatementExpression, condition);
+        this->block = U_INIT(StatementBlock, block);
+        this->_elseIf = U_INIT(StatementIf, _elseIf);
+        this->_else = U_INIT(StatementElse, _else);
     }
 
     void print(std::string padding) override
@@ -467,21 +337,13 @@ struct StatementIf : Statement
 
 struct StatementWhile : Statement
 {
-    StatementExpression* condition;
-    StatementBlock* block;
+    U(StatementExpression) condition;
+    U(StatementBlock) block;
 
     StatementWhile(StatementExpression* condition, StatementBlock* block) : Statement(StatementType::WHILE)
     {
-        this->condition = condition;
-        this->block = block;
-    }
-
-    void _delete() override
-    {
-        condition->_delete();
-        block->_delete();
-        delete this->condition;
-        delete this->block;
+        this->condition = U_INIT(StatementExpression, condition);
+        this->block = U_INIT(StatementBlock, block);
     }
 
     void print(std::string padding) override
@@ -500,16 +362,7 @@ struct StatementWhile : Statement
 
 struct SyntaxTree
 {
-    std::vector<Statement*> statements;
-
-    ~SyntaxTree()
-    {
-        for (auto& stmt : statements) 
-        {
-            stmt->_delete();
-            delete stmt;
-        }
-    }
+    std::vector<U(Statement)> statements;
 
     void print()
     {
@@ -521,5 +374,34 @@ struct SyntaxTree
         std::cout << "]" << std::endl;
     }
 };
+
+StatementBinaryOperator* statement_as_binary_operator(Statement* stmt, OperatorType type)
+{
+    if (stmt->type == StatementType::BINARY_OPERATOR)
+    {
+        auto binaryOperator = (StatementBinaryOperator*)stmt;
+
+        if (binaryOperator->operatorType == type)
+            return binaryOperator;
+    }
+
+    return nullptr;
+}
+
+StatementUnaryOperator* statement_as_unary_operator(Statement* stmt, OperatorType type)
+{
+    if (stmt->type == StatementType::BINARY_OPERATOR)
+    {
+        auto binaryOperator = (StatementUnaryOperator*)stmt;
+
+        if (binaryOperator->operatorType == type)
+            return binaryOperator;
+    }
+
+    return nullptr;
+}
+
+#undef U
+#undef U_INIT
 
 #endif

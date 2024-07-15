@@ -2,6 +2,7 @@
 #define COMPILER
 
 #include <stack>
+#include <memory>
 
 #include "enums/token-type.hpp"
 #include "enums/statement-type.hpp"
@@ -13,12 +14,6 @@
 unsigned int parserPosition = 0;
 unsigned int parserUniqueInt = 0;
 std::vector<Token*> parserTokens;
-
-// Statement rule symbol descriptions
-// *    '-' means must be same line
-// *    '?' whatever comes next is optional
-// *    '...' one or more
-// *    '<>' encloses a statement
 
 /// @brief Moves to the next token in the list of parserTokens.
 void parser_move_next_token()
@@ -104,7 +99,7 @@ void parser_assert_stmt_is_not_null(const Statement* stmt, const std::string& ex
 /**
  * Raise an error if a statement in a block is invalid.
  */
-void parser_raise_error_invalid_stmt(const std::string& inWhat)
+void parser_error_invalid_stmt(const std::string& inWhat)
 {
     CODE_ERROR("Invalid statement in " + inWhat + ".", parser_get_token()->loc.fileName, parser_get_token()->loc.line + 1);
 }
@@ -119,19 +114,17 @@ void parser_raise_error_unknown_stmt()
 
 #pragma region Expressions
 
-StatementExpression* parser_parse_exp();
-StatementFunctionCall* parser_parse_function_call();
-StatementFunction* parser_parse_function(const bool& hasName = true, const bool& isFunctionInStruct = false);
+std::unique_ptr<StatementExpression> parser_parse_exp();
+std::unique_ptr<StatementFunctionCall> parser_parse_function_call();
+std::unique_ptr<StatementFunction> parser_parse_function(const bool& isLambda = false, const bool& isContainedWithinStruct = false);
 
-Statement* parser_parse_exp_term()
+std::unique_ptr<Statement> parser_parse_exp_term()
 {
-    Statement* result = nullptr;
-
     // FUNCTION CALL
     if (parser_get_token()->type == _TokenType::SYMBOL && parser_peek_token()->type == _TokenType::OPEN_PARAN)
     {
-        result = parser_parse_function_call();
-        return result;
+        auto function = parser_parse_function_call();
+        return function;
     }
     // NUMBER
     else if (parser_get_token()->type == _TokenType::NUMBER)
@@ -144,25 +137,32 @@ Statement* parser_parse_exp_term()
                 isDecimal = true;
         }
 
-        result = isDecimal ?
+        auto number = isDecimal ?
             new StatementConstant(DataType::FLOAT, parser_get_token()->value) :
             new StatementConstant(DataType::INT, parser_get_token()->value);
+
+        parser_move_next_token();
+        return std::unique_ptr<Statement>(number);
     }
     // STRING
     else if (parser_get_token()->type == _TokenType::STRING)
     {
-        result = new StatementConstant(DataType::STRING, parser_get_token()->value);
+        auto result = new StatementConstant(DataType::STRING, parser_get_token()->value);
+        parser_move_next_token();
+        return std::unique_ptr<Statement>(result);
     }
     // SYMBOL
     else if (parser_get_token()->type == _TokenType::SYMBOL)
     {
-        result = new StatementSymbol(parser_get_token()->value);
+        auto result = new StatementSymbol(parser_get_token()->value);
+        parser_move_next_token();
+        return std::unique_ptr<Statement>(result);
     }
     // NEGATE
     else if (parser_get_token()->type == _TokenType::MINUS)
     {
         parser_move_next_token();
-        return new StatementUnaryOperator(OperatorType::NEGATE, parser_parse_exp_term());
+        return std::unique_ptr<Statement>(new StatementUnaryOperator(OperatorType::NEGATE, parser_parse_exp_term().release()));
     }
     // INNER EXPRESSIONS
     else if (parser_get_token()->type == _TokenType::OPEN_PARAN)
@@ -171,40 +171,52 @@ Statement* parser_parse_exp_term()
 
         parser_move_next_token();
 
-        result = parser_parse_exp();
+        auto result = parser_parse_exp();
 
         parser_assert_token_is(_TokenType::CLOSE_PARAN, ")", errorLine + 1);
+        parser_move_next_token();
+        return result;
     }
+    // NULL
     else if (parser_get_token()->type == _TokenType::_NULL)
     {
-        result = new StatementConstant(DataType::_NULL, EMPTY_STRING);
+        auto result = new StatementConstant(DataType::_NULL, EMPTY_STRING);
+        parser_move_next_token();
+        return std::unique_ptr<Statement>(result);
     }
+    // TRUE
     else if (parser_get_token()->type == _TokenType::_TRUE)
     {
-        result = new StatementConstant(DataType::BOOL, "1");
+        auto result = new StatementConstant(DataType::BOOL, "1");
+        parser_move_next_token();
+        return std::unique_ptr<Statement>(result);
     }
+    // FALSE
     else if (parser_get_token()->type == _TokenType::_FALSE)
     {
-        result = new StatementConstant(DataType::BOOL, "0");
+        auto result = new StatementConstant(DataType::BOOL, "0");
+        parser_move_next_token();
+        return std::unique_ptr<Statement>(result);
     }
-    else if (parser_get_token()->type == _TokenType::FUNCITON)
+    // LAMBDA FUNCTION
+    else if (parser_get_token()->type == _TokenType::FUNCTION)
     {
-        return parser_parse_function(false);
+        return parser_parse_function(/*isLambda*/ true);
     }
 
-    parser_move_next_token();
-    return result;
+    parser_error_invalid_stmt("Expression Term");
+    return nullptr;
 }
 
-Statement* parser_parse_exp_dot()
+std::unique_ptr<Statement> parser_parse_exp_dot()
 {
     std::stack<Statement*> stmtStack;
-    stmtStack.push(parser_parse_exp_term());
+    stmtStack.push(parser_parse_exp_term().release());
 
     while (parser_get_token()->type == _TokenType::DOT)
     {
         parser_move_next_token();
-        stmtStack.push(parser_parse_exp_term());
+        stmtStack.push(parser_parse_exp_term().release());
     }
 
     if (stmtStack.size() > 1)
@@ -224,19 +236,20 @@ Statement* parser_parse_exp_dot()
             binaryOperator = new StatementBinaryOperator(OperatorType::MEMBER_ACCESSOR, poped, binaryOperator);
         }
 
-        return binaryOperator;
+        return std::unique_ptr<Statement>(binaryOperator);
     }
     else if (stmtStack.size() == 1)
     {
-        return stmtStack.top();
+        return std::unique_ptr<Statement>(stmtStack.top());
     }
 
+    parser_error_invalid_stmt("Member Accessor");
     return nullptr;
 }
 
-Statement* parser_parse_exp_muldivmod()
+std::unique_ptr<Statement> parser_parse_exp_muldivmod()
 {
-    Statement* left = parser_parse_exp_dot();
+    Statement* left = parser_parse_exp_dot().release();
 
     while (parser_get_token()->type == _TokenType::MULTIPLY ||
         parser_get_token()->type == _TokenType::DIVIDE ||
@@ -245,26 +258,26 @@ Statement* parser_parse_exp_muldivmod()
         if (parser_get_token()->type == _TokenType::MULTIPLY)
         {
             parser_move_next_token();
-            left = new StatementBinaryOperator(OperatorType::MULTIPLICATION, left, parser_parse_exp_dot());
+            left = new StatementBinaryOperator(OperatorType::MULTIPLICATION, left, parser_parse_exp_dot().release());
         }
         else if (parser_get_token()->type == _TokenType::DIVIDE)
         {
             parser_move_next_token();
-            left = new StatementBinaryOperator(OperatorType::DIVISION, left, parser_parse_exp_dot());
+            left = new StatementBinaryOperator(OperatorType::DIVISION, left, parser_parse_exp_dot().release());
         }
         else if (parser_get_token()->type == _TokenType::MODULUS)
         {
             parser_move_next_token();
-            left = new StatementBinaryOperator(OperatorType::MODULUS, left, parser_parse_exp_dot());
+            left = new StatementBinaryOperator(OperatorType::MODULUS, left, parser_parse_exp_dot().release());
         }
     }
 
-    return left;
+    return std::unique_ptr<Statement>(left);
 }
 
-Statement* parser_parse_exp_addsub()
+std::unique_ptr<Statement> parser_parse_exp_addsub()
 {
-    Statement* left = parser_parse_exp_muldivmod();
+    Statement* left = parser_parse_exp_muldivmod().release();
 
     while (parser_get_token()->type == _TokenType::PLUS ||
         parser_get_token()->type == _TokenType::MINUS)
@@ -272,21 +285,21 @@ Statement* parser_parse_exp_addsub()
         if (parser_get_token()->type == _TokenType::PLUS)
         {
             parser_move_next_token();
-            left = new StatementBinaryOperator(OperatorType::ADDITION, left, parser_parse_exp_muldivmod());
+            left = new StatementBinaryOperator(OperatorType::ADDITION, left, parser_parse_exp_muldivmod().release());
         }
         else if (parser_get_token()->type == _TokenType::MINUS)
         {
             parser_move_next_token();
-            left = new StatementBinaryOperator(OperatorType::SUBTRACTION, left, parser_parse_exp_muldivmod());
+            left = new StatementBinaryOperator(OperatorType::SUBTRACTION, left, parser_parse_exp_muldivmod().release());
         }
     }
 
-    return left;
+    return std::unique_ptr<Statement>(left);
 }
 
-Statement* parser_parse_equality()
+std::unique_ptr<Statement> parser_parse_equality()
 {
-    Statement* left = parser_parse_exp_addsub();
+    Statement* left = parser_parse_exp_addsub().release();
 
     while (parser_get_token()->type == _TokenType::EQUALS ||
         parser_get_token()->type == _TokenType::NOT_EQUALS ||
@@ -298,41 +311,41 @@ Statement* parser_parse_equality()
         if (parser_get_token()->type == _TokenType::EQUALS)
         {
             parser_move_next_token();
-            left = new StatementBinaryOperator(OperatorType::EQUALS, left, parser_parse_exp_addsub());
+            left = new StatementBinaryOperator(OperatorType::EQUALS, left, parser_parse_exp_addsub().release());
         }
         else if (parser_get_token()->type == _TokenType::NOT_EQUALS)
         {
             parser_move_next_token();
-            left = new StatementBinaryOperator(OperatorType::NOT_EQUALS, left, parser_parse_exp_addsub());
+            left = new StatementBinaryOperator(OperatorType::NOT_EQUALS, left, parser_parse_exp_addsub().release());
         }
         else if (parser_get_token()->type == _TokenType::GREATER_THAN)
         {
             parser_move_next_token();
-            left = new StatementBinaryOperator(OperatorType::GREATER_THAN, left, parser_parse_exp_addsub());
+            left = new StatementBinaryOperator(OperatorType::GREATER_THAN, left, parser_parse_exp_addsub().release());
         }
         else if (parser_get_token()->type == _TokenType::LESS_THAN)
         {
             parser_move_next_token();
-            left = new StatementBinaryOperator(OperatorType::LESS_THAN, left, parser_parse_exp_addsub());
+            left = new StatementBinaryOperator(OperatorType::LESS_THAN, left, parser_parse_exp_addsub().release());
         }
         else if (parser_get_token()->type == _TokenType::GREATER_THAN_E)
         {
             parser_move_next_token();
-            left = new StatementBinaryOperator(OperatorType::GREATER_THAN_E, left, parser_parse_exp_addsub());
+            left = new StatementBinaryOperator(OperatorType::GREATER_THAN_E, left, parser_parse_exp_addsub().release());
         }
         else if (parser_get_token()->type == _TokenType::LESS_THAN_E)
         {
             parser_move_next_token();
-            left = new StatementBinaryOperator(OperatorType::LESS_THAN_E, left, parser_parse_exp_addsub());
+            left = new StatementBinaryOperator(OperatorType::LESS_THAN_E, left, parser_parse_exp_addsub().release());
         }
     }
 
-    return left;
+    return std::unique_ptr<Statement>(left);
 }
 
-Statement* parser_parse_andor()
+std::unique_ptr<Statement> parser_parse_andor()
 {
-    Statement* left = parser_parse_equality();
+    Statement* left = parser_parse_equality().release();
 
     while (parser_get_token()->type == _TokenType::AND ||
         parser_get_token()->type == _TokenType::OR)
@@ -340,27 +353,27 @@ Statement* parser_parse_andor()
         if (parser_get_token()->type == _TokenType::AND)
         {
             parser_move_next_token();
-            left = new StatementBinaryOperator(OperatorType::AND, left, parser_parse_equality());
+            left = new StatementBinaryOperator(OperatorType::AND, left, parser_parse_equality().release());
         }
         else if (parser_get_token()->type == _TokenType::OR)
         {
             parser_move_next_token();
-            left = new StatementBinaryOperator(OperatorType::OR, left, parser_parse_equality());
+            left = new StatementBinaryOperator(OperatorType::OR, left, parser_parse_equality().release());
         }
     }
 
-    return left;
+    return std::unique_ptr<Statement>(left);
 }
 
-Statement* parser_parse_exp_assign()
+std::unique_ptr<Statement> parser_parse_exp_assign()
 {
     std::stack<Statement*> stmtStack;
-    stmtStack.push(parser_parse_andor());
+    stmtStack.push(parser_parse_andor().release());
 
     while (parser_get_token()->type == _TokenType::ASSIGN)
     {
         parser_move_next_token();
-        stmtStack.push(parser_parse_andor());
+        stmtStack.push(parser_parse_andor().release());
     }
 
     if (stmtStack.size() > 1)
@@ -380,35 +393,36 @@ Statement* parser_parse_exp_assign()
             binaryOperator = new StatementBinaryOperator(OperatorType::ASSIGNMENT, poped, binaryOperator);
         }
 
-        return binaryOperator;
+        return std::unique_ptr<StatementBinaryOperator>(binaryOperator);
     }
     else if (stmtStack.size() == 1)
     {
-        return stmtStack.top();
+        return std::unique_ptr<Statement>(stmtStack.top());
     }
 
+    parser_error_invalid_stmt("Assignment");
     return nullptr;
 }
 
 /**
  * Always ends on the next token.
  */
-StatementExpression* parser_parse_exp()
+std::unique_ptr<StatementExpression> parser_parse_exp()
 {
-    return new StatementExpression(parser_parse_exp_assign());
+    return std::unique_ptr<StatementExpression>(new StatementExpression(parser_parse_exp_assign().release()));
 }
 
 #pragma endregion
 
 #pragma region Statements
 
-Statement* parser_parse_a_single_statement(const bool& topLevel = false);
+std::unique_ptr<Statement> parser_parse_a_single_statement(const bool& topLevel = false);
 
 /**
  * Parses a block.
  * @param withBrackets if true, will read until a closed bracket, and if false, will read until an END_OF_FILE token.
  */
-StatementBlock* parser_parse_block(const bool& withBrackets = true)
+std::unique_ptr<StatementBlock> parser_parse_block(const bool& withBrackets = true)
 {
     auto block = new StatementBlock();
 
@@ -425,7 +439,7 @@ StatementBlock* parser_parse_block(const bool& withBrackets = true)
     while (parser_get_token()->type != _TokenType::END_OF_FILE)
     {
         if (auto stmt = parser_parse_a_single_statement())
-            block->statements.push_back(stmt);
+            block->statements.push_back(std::unique_ptr<Statement>(stmt.release()));
 
         if (withBrackets && parser_get_token()->type == _TokenType::CLOSE_BRACKET)
             break;
@@ -443,7 +457,7 @@ StatementBlock* parser_parse_block(const bool& withBrackets = true)
         parser_move_next_token();
     }
 
-    return block;
+    return std::unique_ptr<StatementBlock>(block);
 }
 
 /**
@@ -451,15 +465,15 @@ StatementBlock* parser_parse_block(const bool& withBrackets = true)
  * 
  * }-EOL
  */
-StatementFunction* parser_parse_function(const bool& hasName, const bool& isFunctionInStruct)
+std::unique_ptr<StatementFunction> parser_parse_function(const bool& isLambda, const bool& isContainedWithinStruct)
 {
     auto function = new StatementFunction(EMPTY_STRING);
 
-    if (hasName)
+    if (!isLambda)
     {
         parser_move_next_token();
 
-        if (isFunctionInStruct &&
+        if (isContainedWithinStruct &&
             (parser_get_token()->type == _TokenType::PLUS ||
             parser_get_token()->type == _TokenType::MINUS ||
             parser_get_token()->type == _TokenType::MULTIPLY ||
@@ -502,7 +516,7 @@ StatementFunction* parser_parse_function(const bool& hasName, const bool& isFunc
         {
             parser_assert_token_is(_TokenType::SYMBOL, "Function Parameter");
 
-            function->params.push_back(new StatementSymbol(parser_get_token()->value));
+            function->params.push_back(std::unique_ptr<StatementSymbol>(new StatementSymbol(parser_get_token()->value)));
             ++numberOfParams;
             parser_move_next_token();
 
@@ -522,15 +536,15 @@ StatementFunction* parser_parse_function(const bool& hasName, const bool& isFunc
     // with the number of parameters the function has
     function->name += std::to_string(numberOfParams);
 
-    function->body = parser_parse_block();
+    function->body = std::unique_ptr<StatementBlock>(parser_parse_block());
 
-    return function;
+    return std::unique_ptr<StatementFunction>(function);
 }
 
 /**
  * `FunctionName`-(? `expression`... , )-EOL
  */
-StatementFunctionCall* parser_parse_function_call()
+std::unique_ptr<StatementFunctionCall> parser_parse_function_call()
 {
     auto functionCall = new StatementFunctionCall(parser_get_token()->value);
 
@@ -550,9 +564,9 @@ StatementFunctionCall* parser_parse_function_call()
         {
             auto exp = parser_parse_exp();
 
-            parser_assert_stmt_is_not_null(exp, "Function Call Argument");
+            parser_assert_stmt_is_not_null(exp.get(), "Function Call Argument");
 
-            functionCall->argExpressions.push_back(exp);
+            functionCall->args.push_back(std::unique_ptr<StatementExpression>(exp.release()));
             ++numberOfExpressions;
 
             if (parser_get_token()->type == _TokenType::CLOSE_PARAN)
@@ -571,7 +585,7 @@ StatementFunctionCall* parser_parse_function_call()
     // with the number of arguments the function has been passed
     functionCall->name += std::to_string(numberOfExpressions);
 
-    return functionCall;
+    return std::unique_ptr<StatementFunctionCall>(functionCall);
 }
 
 /**
@@ -583,7 +597,7 @@ StatementFunctionCall* parser_parse_function_call()
  * 
  * }
  */
-StatementStruct* parser_parse_struct()
+std::unique_ptr<StatementStruct> parser_parse_struct()
 {
     parser_move_next_token();
     parser_assert_token_is(_TokenType::SYMBOL, "Structure Name");
@@ -600,21 +614,26 @@ StatementStruct* parser_parse_struct()
     unsigned int errorLine = parser_get_token()->loc.line;
 
     // parse variables and functions in structure
-    while (parser_get_token()->type != _TokenType::CLOSE_BRACKET && parser_get_token()->type != _TokenType::END_OF_FILE)
+    while (parser_get_token()->type != _TokenType::CLOSE_BRACKET &&
+        parser_get_token()->type != _TokenType::END_OF_FILE)
     {
-        // VARIABLE
+        // VARIABLE ASSIGNMENT
         if (parser_get_token()->type == _TokenType::SYMBOL && parser_peek_token()->type == _TokenType::ASSIGN)
         {
-            _struct->variables.push_back(parser_parse_exp());
+            _struct->variables.push_back(std::unique_ptr<StatementExpression>(parser_parse_exp()));
         }
         // FUNCTION
-        else if (parser_get_token()->type == _TokenType::FUNCITON)
+        else if (parser_get_token()->type == _TokenType::FUNCTION)
         {
-            _struct->functions.push_back(parser_parse_function(true, true));
+            _struct->functions.push_back(
+                std::unique_ptr<StatementFunction>(
+                    parser_parse_function(/*isLambda*/ false, /*isContainedWithinStruct*/ true)
+                    )
+                );
         }
         else 
         {
-            parser_raise_error_invalid_stmt("Structure");
+            parser_error_invalid_stmt("Structure");
         }
 
         if (parser_get_token()->type == _TokenType::CLOSE_BRACKET)
@@ -627,7 +646,7 @@ StatementStruct* parser_parse_struct()
     parser_assert_token_is(_TokenType::CLOSE_BRACKET, "}", errorLine + 1);
     parser_move_next_token();
 
-    return _struct;
+    return std::unique_ptr<StatementStruct>(_struct);
 }
 
 /**
@@ -635,10 +654,10 @@ StatementStruct* parser_parse_struct()
  * 
  * }
  */
-StatementElse* parser_parse_else()
+std::unique_ptr<StatementElse> parser_parse_else()
 {
     parser_move_next_token_skip_eols();
-    return new StatementElse(parser_parse_block());
+    return std::unique_ptr<StatementElse>(new StatementElse(parser_parse_block().release()));
 }
 
 /**
@@ -652,13 +671,13 @@ StatementElse* parser_parse_else()
  * 
  * }
  */
-StatementIf* parser_parse_if()
+std::unique_ptr<StatementIf> parser_parse_if()
 {
     parser_move_next_token();
 
     auto condition = parser_parse_exp();
 
-    parser_assert_stmt_is_not_null(condition, "Condition");
+    parser_assert_stmt_is_not_null(condition.get(), "Condition");
 
     if (parser_get_token()->type == _TokenType::END_OF_LINE)
         parser_move_next_token_skip_eols();
@@ -675,16 +694,16 @@ StatementIf* parser_parse_if()
     if (parser_get_token()->type == _TokenType::END_OF_LINE)
         parser_move_next_token_skip_eols();
 
-    auto _if = new StatementIf(condition, block, nullptr, nullptr);
+    auto _if = new StatementIf(condition.release(), block.release(), nullptr, nullptr);
 
     if (parser_get_token()->type == _TokenType::ELSE && parser_peek_token()->type == _TokenType::IF)
     {
         parser_move_next_token();
-        _if->_elseIf = parser_parse_if();
+        _if->_elseIf = std::unique_ptr<StatementIf>(parser_parse_if());
     }
     else if (parser_get_token()->type == _TokenType::ELSE)
     {
-        _if->_else = parser_parse_else();
+        _if->_else = std::unique_ptr<StatementElse>(parser_parse_else());
     }
     else
     {
@@ -692,7 +711,7 @@ StatementIf* parser_parse_if()
         parserPosition = endOfIfPosition;
     }
 
-    return _if;
+    return std::unique_ptr<StatementIf>(_if);
 }
 
 /**
@@ -700,21 +719,21 @@ StatementIf* parser_parse_if()
  * 
  * }
  */
-Statement* parser_parse_while()
+std::unique_ptr<StatementWhile> parser_parse_while()
 {
     parser_move_next_token();
 
     auto condition = parser_parse_exp();
 
-    parser_assert_stmt_is_not_null(condition, "Condition");
+    parser_assert_stmt_is_not_null(condition.get(), "Condition");
 
     if (parser_get_token()->type == _TokenType::END_OF_LINE)
         parser_move_next_token_skip_eols();
 
-    return new StatementWhile(condition, parser_parse_block());
+    return std::unique_ptr<StatementWhile>(new StatementWhile(condition.release(), parser_parse_block().release()));
 }
 
-StatementBlockNamespace* parser_parse_namespace(const bool& topLevel)
+std::unique_ptr<StatementBlockNamespace> parser_parse_namespace(const bool& topLevel)
 {
     if (!topLevel)
         CODE_ERROR("Namespaces cannot be nested.", parser_get_token()->loc.fileName, parser_get_token()->loc.line + 1);
@@ -729,23 +748,23 @@ StatementBlockNamespace* parser_parse_namespace(const bool& topLevel)
     StatementBlock* block;
 
     if (parser_get_token()->type == _TokenType::OPEN_BRACKET)
-        block = parser_parse_block();
+        block = parser_parse_block().release();
     else
         // parse the block without brackets - basically means parse the entire file at this token
-        block = parser_parse_block(false);
+        block = parser_parse_block(/*withBrackets*/ false).release();
 
     for (auto& stmt : block->statements)
-        _namespace->statements.push_back(stmt);
+        _namespace->statements.push_back(std::unique_ptr<Statement>(stmt.release()));
 
     delete block;
 
-    return _namespace;
+    return std::unique_ptr<StatementBlockNamespace>(_namespace);
 }
 
 /**
  * Parses the next statement.
  */
-Statement* parser_parse_a_single_statement(const bool& topLevel)
+std::unique_ptr<Statement> parser_parse_a_single_statement(const bool& topLevel)
 {
     // IF
     if (parser_get_token()->type == _TokenType::IF)
@@ -774,7 +793,7 @@ Statement* parser_parse_a_single_statement(const bool& topLevel)
         return parser_parse_exp();
     }
     // FUNCTIONS
-    else if (parser_get_token()->type == _TokenType::FUNCITON)
+    else if (parser_get_token()->type == _TokenType::FUNCTION)
     {
         return parser_parse_function();
     }
@@ -787,7 +806,7 @@ Statement* parser_parse_a_single_statement(const bool& topLevel)
     else if (parser_get_token()->type == _TokenType::RETURN)
     {
         parser_move_next_token();
-        return new StatementReturn(parser_parse_exp());
+        return std::unique_ptr<StatementReturn>(new StatementReturn(parser_parse_exp().release()));
     }
     // NAMESPACE
     else if (parser_get_token()->type == _TokenType::NAMESPACE)
@@ -825,13 +844,11 @@ void parser_get_syntax_tree(SyntaxTree& tree, const std::vector<Token*>& tokens)
     while (parser_get_token()->type != _TokenType::END_OF_FILE)
     {
         if (auto stmt = parser_parse_a_single_statement(true))
-            tree.statements.push_back(stmt);
+            tree.statements.push_back(std::unique_ptr<Statement>(stmt.release()));
 
         parser_assert_end_of_statement();
         parser_move_next_token();
     }
 }
-
-#pragma endregion
 
 #endif // COMPILER

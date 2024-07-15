@@ -101,7 +101,7 @@ std::vector<Token*> lexer_get_tokens(const std::string& filePath, const std::str
              */
             if (symbol == "fn")
             {
-                tokens.push_back(new Token(_TokenType::FUNCITON, symbol, line));
+                tokens.push_back(new Token(_TokenType::FUNCTION, symbol, line));
                 continue;
             }
             else if (symbol == "return")
@@ -168,9 +168,18 @@ std::vector<Token*> lexer_get_tokens(const std::string& filePath, const std::str
         {
             std::string str = EMPTY_STRING;
             unsigned int beginLine = line;
+            bool wasEscaped = false;
 
-            while (ifs.peek() != '"' && !ifs.eof())
-                str += ifs.get();
+            while ((ifs.peek() != '"' && !wasEscaped) && !ifs.eof())
+            {
+                wasEscaped = false;
+
+                c = ifs.get();
+                str += c;
+                
+                if (c == '\\')
+                    wasEscaped = true;
+            }
 
             c = ifs.get();
 
